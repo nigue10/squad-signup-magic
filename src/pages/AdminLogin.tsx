@@ -56,7 +56,7 @@ const AdminLogin = () => {
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <div className="flex justify-center mb-6">
           <img 
-            src="/lovable-uploads/526b0e79-f8fc-413d-b351-c946cb887c75.png" 
+            src="/lovable-uploads/f2bba9e8-108e-4607-9b68-2192cbc4963a.png" 
             alt="Logo IGC" 
             className="w-20 h-20 object-contain"
           />
