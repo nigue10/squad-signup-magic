@@ -21,13 +21,13 @@ const TeamGeneralInfoForm: React.FC<TeamGeneralInfoFormProps> = ({ generalInfo, 
 
   return (
     <div className="space-y-4">
-      <h2 className="form-section-title">
+      <h2 className="text-xl font-bold text-igc-blue flex items-center gap-2 pb-2 border-b border-gray-200">
         <MapPin className="w-5 h-5" /> Informations Générales sur l'Équipe
       </h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="form-field">
-          <Label htmlFor="date" className="form-label">Date</Label>
+        <div className="space-y-2">
+          <Label htmlFor="date" className="text-sm font-medium">Date</Label>
           <Input
             id="date"
             type="text"
@@ -38,8 +38,8 @@ const TeamGeneralInfoForm: React.FC<TeamGeneralInfoFormProps> = ({ generalInfo, 
           />
         </div>
         
-        <div className="form-field">
-          <Label htmlFor="name" className="form-label required">Nom de l'équipe</Label>
+        <div className="space-y-2">
+          <Label htmlFor="name" className="text-sm font-medium after:content-['*'] after:text-red-500 after:ml-0.5">Nom de l'équipe</Label>
           <Input
             id="name"
             type="text"
@@ -49,8 +49,8 @@ const TeamGeneralInfoForm: React.FC<TeamGeneralInfoFormProps> = ({ generalInfo, 
           />
         </div>
         
-        <div className="form-field">
-          <Label htmlFor="category" className="form-label required">Catégorie</Label>
+        <div className="space-y-2">
+          <Label htmlFor="category" className="text-sm font-medium after:content-['*'] after:text-red-500 after:ml-0.5">Catégorie</Label>
           <Select
             value={generalInfo.category}
             onValueChange={(value) => handleChange('category', value as TeamCategory)}
@@ -65,8 +65,8 @@ const TeamGeneralInfoForm: React.FC<TeamGeneralInfoFormProps> = ({ generalInfo, 
           </Select>
         </div>
         
-        <div className="form-field">
-          <Label htmlFor="city" className="form-label required">Ville</Label>
+        <div className="space-y-2">
+          <Label htmlFor="city" className="text-sm font-medium after:content-['*'] after:text-red-500 after:ml-0.5">Ville</Label>
           <Input
             id="city"
             type="text"
@@ -76,8 +76,8 @@ const TeamGeneralInfoForm: React.FC<TeamGeneralInfoFormProps> = ({ generalInfo, 
           />
         </div>
         
-        <div className="form-field">
-          <Label htmlFor="commune" className="form-label required">Commune</Label>
+        <div className="space-y-2">
+          <Label htmlFor="commune" className="text-sm font-medium after:content-['*'] after:text-red-500 after:ml-0.5">Commune</Label>
           <Input
             id="commune"
             type="text"
@@ -87,8 +87,8 @@ const TeamGeneralInfoForm: React.FC<TeamGeneralInfoFormProps> = ({ generalInfo, 
           />
         </div>
         
-        <div className="form-field">
-          <Label htmlFor="institution" className="form-label required">Établissement ou structure de rattachement</Label>
+        <div className="space-y-2">
+          <Label htmlFor="institution" className="text-sm font-medium after:content-['*'] after:text-red-500 after:ml-0.5">Établissement ou structure de rattachement</Label>
           <Input
             id="institution"
             type="text"
@@ -98,8 +98,8 @@ const TeamGeneralInfoForm: React.FC<TeamGeneralInfoFormProps> = ({ generalInfo, 
           />
         </div>
         
-        <div className="form-field">
-          <Label htmlFor="pedagogicalReferentName" className="form-label">Nom du référent pédagogique</Label>
+        <div className="space-y-2">
+          <Label htmlFor="pedagogicalReferentName" className="text-sm font-medium">Nom du référent pédagogique</Label>
           <Input
             id="pedagogicalReferentName"
             type="text"
@@ -108,8 +108,8 @@ const TeamGeneralInfoForm: React.FC<TeamGeneralInfoFormProps> = ({ generalInfo, 
           />
         </div>
         
-        <div className="form-field">
-          <Label htmlFor="pedagogicalReferentPhone" className="form-label">Téléphone référent pédagogique</Label>
+        <div className="space-y-2">
+          <Label htmlFor="pedagogicalReferentPhone" className="text-sm font-medium">Téléphone référent pédagogique</Label>
           <Input
             id="pedagogicalReferentPhone"
             type="tel"
@@ -118,8 +118,8 @@ const TeamGeneralInfoForm: React.FC<TeamGeneralInfoFormProps> = ({ generalInfo, 
           />
         </div>
         
-        <div className="form-field">
-          <Label htmlFor="pedagogicalReferentEmail" className="form-label">Email référent pédagogique</Label>
+        <div className="space-y-2">
+          <Label htmlFor="pedagogicalReferentEmail" className="text-sm font-medium">Email référent pédagogique</Label>
           <Input
             id="pedagogicalReferentEmail"
             type="email"
@@ -128,8 +128,8 @@ const TeamGeneralInfoForm: React.FC<TeamGeneralInfoFormProps> = ({ generalInfo, 
           />
         </div>
         
-        <div className="form-field">
-          <Label htmlFor="teamLeaderName" className="form-label">Nom du chef d'équipe</Label>
+        <div className="space-y-2">
+          <Label htmlFor="teamLeaderName" className="text-sm font-medium">Nom du chef d'équipe</Label>
           <Input
             id="teamLeaderName"
             type="text"

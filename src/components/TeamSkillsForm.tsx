@@ -21,8 +21,8 @@ const TeamSkillsForm: React.FC<TeamSkillsFormProps> = ({ skills, onChange }) => 
 
   return (
     <div className="space-y-4">
-      <h2 className="form-section-title">
-        <Brain className="w-5 h-5" /> Compétences & Outils maîtrisés dans l'équipe (à cocher)
+      <h2 className="text-xl font-bold text-igc-blue flex items-center gap-2 pb-2 border-b border-gray-200">
+        <Brain className="w-5 h-5" /> Compétences & Outils maîtrisés dans l'équipe
       </h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

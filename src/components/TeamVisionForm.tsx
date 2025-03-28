@@ -22,13 +22,15 @@ const TeamVisionForm: React.FC<TeamVisionFormProps> = ({ vision, onChange }) => 
 
   return (
     <div className="space-y-4">
-      <h2 className="form-section-title">
+      <h2 className="text-xl font-bold text-igc-blue flex items-center gap-2 pb-2 border-b border-gray-200">
         <Lightbulb className="w-5 h-5" /> Motivation & Vision
       </h2>
       
       <div className="space-y-6">
-        <div className="form-field">
-          <Label htmlFor="motivation" className="form-label required">Pourquoi souhaitez-vous participer à l'IGC 2025 ? (3-5 lignes)</Label>
+        <div className="space-y-2">
+          <Label htmlFor="motivation" className="text-sm font-medium after:content-['*'] after:text-red-500 after:ml-0.5">
+            Pourquoi souhaitez-vous participer à l'IGC 2025 ? (3-5 lignes)
+          </Label>
           <Textarea
             id="motivation"
             value={vision.motivation}
@@ -38,8 +40,10 @@ const TeamVisionForm: React.FC<TeamVisionFormProps> = ({ vision, onChange }) => 
           />
         </div>
         
-        <div className="form-field">
-          <Label htmlFor="values" className="form-label required">En quoi votre équipe incarne les valeurs de l'IGC ? (Créativité, esprit d'équipe, innovation)</Label>
+        <div className="space-y-2">
+          <Label htmlFor="values" className="text-sm font-medium after:content-['*'] after:text-red-500 after:ml-0.5">
+            En quoi votre équipe incarne les valeurs de l'IGC ? (Créativité, esprit d'équipe, innovation)
+          </Label>
           <Textarea
             id="values"
             value={vision.values}
@@ -49,8 +53,10 @@ const TeamVisionForm: React.FC<TeamVisionFormProps> = ({ vision, onChange }) => 
           />
         </div>
         
-        <div className="form-field">
-          <Label htmlFor="roboticsLevel" className="form-label required">Niveau de connaissances en robotique de l'équipe</Label>
+        <div className="space-y-2">
+          <Label htmlFor="roboticsLevel" className="text-sm font-medium after:content-['*'] after:text-red-500 after:ml-0.5">
+            Niveau de connaissances en robotique de l'équipe
+          </Label>
           <Select
             value={vision.roboticsLevel}
             onValueChange={(value) => handleChange('roboticsLevel', value as RoboticsLevel)}
@@ -66,8 +72,10 @@ const TeamVisionForm: React.FC<TeamVisionFormProps> = ({ vision, onChange }) => 
           </Select>
         </div>
         
-        <div className="form-field">
-          <Label className="form-label required">L'équipe dispose-t-elle d'un espace de travail ?</Label>
+        <div className="space-y-2">
+          <Label className="text-sm font-medium after:content-['*'] after:text-red-500 after:ml-0.5">
+            L'équipe dispose-t-elle d'un espace de travail ?
+          </Label>
           <RadioGroup
             value={vision.hasWorkspace ? "yes" : "no"}
             onValueChange={(value) => handleChange('hasWorkspace', value === "yes")}

@@ -38,11 +38,11 @@ const TeamMembersForm: React.FC<TeamMembersFormProps> = ({ members, onChange, ca
 
   return (
     <div className="space-y-4">
-      <h2 className="form-section-title">
+      <h2 className="text-xl font-bold text-igc-blue flex items-center gap-2 pb-2 border-b border-gray-200">
         <Users className="w-5 h-5" /> Composition de l'Équipe
       </h2>
       
-      <div className="bg-igc-lightblue p-3 rounded-md mb-2">
+      <div className="bg-blue-50 p-3 rounded-md mb-2">
         <p className="text-sm font-medium">👉 Le chef d'équipe doit figurer dans la liste ci-dessous et y renseigner ses coordonnées.</p>
       </div>
       
@@ -58,25 +58,25 @@ const TeamMembersForm: React.FC<TeamMembersFormProps> = ({ members, onChange, ca
       </Alert>
       
       <div className="overflow-x-auto">
-        <table className="form-table w-full border-collapse border">
-          <thead>
+        <table className="min-w-full border-collapse border border-gray-200">
+          <thead className="bg-gray-50">
             <tr>
-              <th>Nom & Prénoms *</th>
-              <th>Sexe *</th>
-              <th>Date de naissance *</th>
-              <th>Classe / Niveau *</th>
-              <th>Établissement *</th>
-              <th>Ville *</th>
-              <th>Commune *</th>
-              <th>Téléphone</th>
-              <th>Email</th>
-              <th>Actions</th>
+              <th className="p-2 text-xs font-medium text-gray-700 text-left border">Nom & Prénoms *</th>
+              <th className="p-2 text-xs font-medium text-gray-700 text-left border">Sexe *</th>
+              <th className="p-2 text-xs font-medium text-gray-700 text-left border">Date de naissance *</th>
+              <th className="p-2 text-xs font-medium text-gray-700 text-left border">Classe / Niveau *</th>
+              <th className="p-2 text-xs font-medium text-gray-700 text-left border">Établissement *</th>
+              <th className="p-2 text-xs font-medium text-gray-700 text-left border">Ville *</th>
+              <th className="p-2 text-xs font-medium text-gray-700 text-left border">Commune *</th>
+              <th className="p-2 text-xs font-medium text-gray-700 text-left border">Téléphone</th>
+              <th className="p-2 text-xs font-medium text-gray-700 text-left border">Email</th>
+              <th className="p-2 text-xs font-medium text-gray-700 text-left border">Actions</th>
             </tr>
           </thead>
           <tbody>
             {members.map((member) => (
-              <tr key={member.id}>
-                <td>
+              <tr key={member.id} className="hover:bg-gray-50">
+                <td className="p-2 border">
                   <Input
                     value={member.name}
                     onChange={(e) => updateMember(member.id, 'name', e.target.value)}
@@ -84,7 +84,7 @@ const TeamMembersForm: React.FC<TeamMembersFormProps> = ({ members, onChange, ca
                     required
                   />
                 </td>
-                <td>
+                <td className="p-2 border">
                   <Select 
                     value={member.gender}
                     onValueChange={(value) => updateMember(member.id, 'gender', value)}
@@ -98,7 +98,7 @@ const TeamMembersForm: React.FC<TeamMembersFormProps> = ({ members, onChange, ca
                     </SelectContent>
                   </Select>
                 </td>
-                <td>
+                <td className="p-2 border">
                   <Input
                     type="date"
                     value={member.birthDate}
@@ -107,7 +107,7 @@ const TeamMembersForm: React.FC<TeamMembersFormProps> = ({ members, onChange, ca
                     required
                   />
                 </td>
-                <td>
+                <td className="p-2 border">
                   <Input
                     value={member.level}
                     onChange={(e) => updateMember(member.id, 'level', e.target.value)}
@@ -115,7 +115,7 @@ const TeamMembersForm: React.FC<TeamMembersFormProps> = ({ members, onChange, ca
                     required
                   />
                 </td>
-                <td>
+                <td className="p-2 border">
                   <Input
                     value={member.school}
                     onChange={(e) => updateMember(member.id, 'school', e.target.value)}
@@ -123,7 +123,7 @@ const TeamMembersForm: React.FC<TeamMembersFormProps> = ({ members, onChange, ca
                     required
                   />
                 </td>
-                <td>
+                <td className="p-2 border">
                   <Input
                     value={member.city}
                     onChange={(e) => updateMember(member.id, 'city', e.target.value)}
@@ -131,7 +131,7 @@ const TeamMembersForm: React.FC<TeamMembersFormProps> = ({ members, onChange, ca
                     required
                   />
                 </td>
-                <td>
+                <td className="p-2 border">
                   <Input
                     value={member.commune}
                     onChange={(e) => updateMember(member.id, 'commune', e.target.value)}
@@ -139,7 +139,7 @@ const TeamMembersForm: React.FC<TeamMembersFormProps> = ({ members, onChange, ca
                     required
                   />
                 </td>
-                <td>
+                <td className="p-2 border">
                   <Input
                     type="tel"
                     value={member.phone || ''}
@@ -147,7 +147,7 @@ const TeamMembersForm: React.FC<TeamMembersFormProps> = ({ members, onChange, ca
                     className="w-full"
                   />
                 </td>
-                <td>
+                <td className="p-2 border">
                   <Input
                     type="email"
                     value={member.email || ''}
@@ -155,7 +155,7 @@ const TeamMembersForm: React.FC<TeamMembersFormProps> = ({ members, onChange, ca
                     className="w-full"
                   />
                 </td>
-                <td>
+                <td className="p-2 border">
                   {members.length > minMembers && (
                     <Button 
                       variant="destructive" 
