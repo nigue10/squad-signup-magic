@@ -10,10 +10,12 @@ import TeamVisionForm from '@/components/TeamVisionForm';
 import { TeamRegistration, TeamGeneralInfo, TeamMember, TeamSkills, TeamVision } from '@/types/igc';
 import { createEmptyMember } from '@/lib/helpers';
 import { useNavigate } from 'react-router-dom';
+import { saveRegistration } from '@/lib/storage';
 
 const RegistrationForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // État initial du formulaire
   const [registration, setRegistration] = useState<TeamRegistration>({
@@ -92,9 +94,27 @@ const RegistrationForm = () => {
   // Soumission du formulaire
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
     try {
-      // Cette partie sera implémentée avec Supabase dans l'étape suivante
+      // Vérification des données requises
+      const requiredFields = validateForm();
+      if (requiredFields.length > 0) {
+        toast({
+          title: "Champs requis manquants",
+          description: `Veuillez remplir tous les champs obligatoires: ${requiredFields.join(', ')}`,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Sauvegarde de l'inscription
+      const registrationId = saveRegistration(registration);
+      
+      console.log("Équipe enregistrée avec l'ID:", registrationId);
+      
+      // Notification de succès
       toast({
         title: "Inscription envoyée !",
         description: "Votre équipe a été inscrite avec succès. Vous recevrez une confirmation par email.",
@@ -104,6 +124,7 @@ const RegistrationForm = () => {
       setTimeout(() => {
         navigate('/');
       }, 2000);
+      
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error);
       toast({
@@ -111,7 +132,33 @@ const RegistrationForm = () => {
         description: "Une erreur est survenue. Veuillez réessayer plus tard.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+  
+  // Validation du formulaire
+  const validateForm = (): string[] => {
+    const missingFields: string[] = [];
+    
+    // Vérification des informations générales
+    if (!registration.generalInfo.name) missingFields.push("Nom de l'équipe");
+    if (!registration.generalInfo.city) missingFields.push("Ville");
+    if (!registration.generalInfo.commune) missingFields.push("Commune");
+    if (!registration.generalInfo.institution) missingFields.push("Institution");
+    if (!registration.generalInfo.teamLeaderName) missingFields.push("Nom du chef d'équipe");
+    
+    // Vérification des membres (au moins 4 membres requis)
+    const validMembers = registration.members.filter(m => m.name && m.birthDate && m.level && m.school);
+    if (validMembers.length < 4) {
+      missingFields.push("Au moins 4 membres d'équipe avec informations complètes");
+    }
+    
+    // Vérification de la vision
+    if (!registration.vision.motivation) missingFields.push("Motivation");
+    if (!registration.vision.values) missingFields.push("Valeurs");
+    
+    return missingFields;
   };
 
   return (
@@ -147,8 +194,13 @@ const RegistrationForm = () => {
             />
             
             <div className="flex justify-center pt-8">
-              <Button type="submit" size="lg" className="w-full md:w-64">
-                Soumettre l'inscription
+              <Button 
+                type="submit" 
+                size="lg" 
+                className="w-full md:w-64"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Envoi en cours..." : "Soumettre l'inscription"}
               </Button>
             </div>
           </form>
