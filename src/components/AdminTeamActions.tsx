@@ -88,6 +88,39 @@ const AdminTeamActions = ({ team }: AdminTeamActionsProps) => {
     });
   };
   
+  // Fonction pour générer une fiche de résumé PDF (simulée)
+  const generateSummaryPDF = () => {
+    toast({
+      title: "Génération de PDF",
+      description: `La fiche de résumé pour ${team.generalInfo.name} est prête à être téléchargée`,
+    });
+    
+    // Dans une vraie application, cela appellerait une bibliothèque pour générer un PDF
+    setTimeout(() => {
+      toast({
+        title: "PDF généré",
+        description: "Le document a été généré avec succès.",
+      });
+    }, 1500);
+  };
+  
+  // Fonction pour envoyer un email de convocation (simulée)
+  const sendInterviewInvitation = () => {
+    if (!team.interviewDate || !team.interviewTime || !team.interviewLink) {
+      toast({
+        title: "Informations manquantes",
+        description: "Veuillez d'abord planifier l'entretien pour cette équipe.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    toast({
+      title: "Convocation envoyée",
+      description: `Un email de convocation a été envoyé à l'équipe ${team.generalInfo.name}`,
+    });
+  };
+  
   return (
     <>
       <DropdownMenu>
@@ -111,6 +144,28 @@ const AdminTeamActions = ({ team }: AdminTeamActionsProps) => {
           <DropdownMenuItem className="flex items-center gap-2" onClick={handleMarkAsVerified}>
             <FileCheck className="h-4 w-4" /> Marquer comme vérifié
           </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
+          {/* Actions spécifiques au processus de sélection */}
+          {team.status === 'Qualifié pour entretien' && (
+            <DropdownMenuItem 
+              className="flex items-center gap-2 text-blue-600" 
+              onClick={sendInterviewInvitation}
+            >
+              <Mail className="h-4 w-4" /> Envoyer convocation
+            </DropdownMenuItem>
+          )}
+          
+          {team.status === 'Entretien réalisé' && (
+            <DropdownMenuItem 
+              className="flex items-center gap-2 text-purple-600" 
+              onClick={generateSummaryPDF}
+            >
+              <FileCheck className="h-4 w-4" /> Générer fiche de résultats
+            </DropdownMenuItem>
+          )}
+          
           <DropdownMenuSeparator />
           <DropdownMenuItem 
             className="flex items-center gap-2 text-red-500" 

@@ -7,11 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import LogoHeader from '@/components/LogoHeader';
-import { getAllRegistrations } from '@/lib/storage';
-import { TeamRegistration, TeamCategory } from '@/types/igc';
+import { getAllRegistrations, updateRegistration } from '@/lib/storage';
+import { TeamRegistration, TeamCategory, TeamStatus } from '@/types/igc';
 import { formatDate, downloadCSV } from '@/lib/helpers';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
+import TeamTrackingTable from '@/components/TeamTrackingTable';
 import { 
   Users, 
   FileSpreadsheet, 
@@ -25,8 +26,8 @@ import {
   Filter,
   LogOut,
   Download,
-  Trash,
-  AlertTriangle
+  AlertTriangle,
+  ClipboardList
 } from 'lucide-react';
 import {
   Table,
@@ -45,6 +46,7 @@ const AdminDashboard = () => {
   const [selectedTeam, setSelectedTeam] = useState<TeamRegistration | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<TeamCategory | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<TeamStatus | "all">("all");
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   
   // Vérification de l'authentification
@@ -60,6 +62,28 @@ const AdminDashboard = () => {
     try {
       const teams = getAllRegistrations();
       setRegistrations(teams);
+      
+      // Ajouter un statut par défaut aux équipes qui n'en ont pas
+      const teamsWithStatus = teams.map(team => {
+        if (!team.status) {
+          return {
+            ...team,
+            status: 'Inscrit' as TeamStatus
+          };
+        }
+        return team;
+      });
+      
+      // Si des équipes ont été mises à jour, sauvegarder les changements
+      if (teamsWithStatus.some((team, i) => team.status !== teams[i].status)) {
+        teamsWithStatus.forEach(team => {
+          if (team.id) {
+            updateRegistration(team.id, { status: team.status });
+          }
+        });
+        setRegistrations(teamsWithStatus);
+      }
+      
     } catch (error) {
       console.error("Erreur lors du chargement des équipes:", error);
       toast({
@@ -87,13 +111,54 @@ const AdminDashboard = () => {
           categoryFilter === "all" || 
           team.generalInfo.category === categoryFilter;
         
-        return matchesSearch && matchesCategory;
+        // Filtre par statut
+        const matchesStatus = 
+          statusFilter === "all" || 
+          team.status === statusFilter;
+        
+        return matchesSearch && matchesCategory && matchesStatus;
       })
       .sort((a, b) => {
         // Tri par date d'inscription (la plus récente en premier)
         return new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime();
       });
-  }, [registrations, searchTerm, categoryFilter]);
+  }, [registrations, searchTerm, categoryFilter, statusFilter]);
+  
+  // Mise à jour d'une équipe
+  const handleTeamUpdate = (teamId: string, updatedData: Partial<TeamRegistration>) => {
+    try {
+      // Mettre à jour l'équipe dans la base de données
+      updateRegistration(teamId, updatedData);
+      
+      // Mettre à jour l'état local
+      const updatedTeams = registrations.map(team => {
+        if (team.id === teamId) {
+          return { ...team, ...updatedData };
+        }
+        return team;
+      });
+      
+      setRegistrations(updatedTeams);
+      
+      // Si l'équipe sélectionnée est mise à jour, mettre également à jour selectedTeam
+      if (selectedTeam && selectedTeam.id === teamId) {
+        setSelectedTeam({ ...selectedTeam, ...updatedData });
+      }
+      
+      toast({
+        title: "Équipe mise à jour",
+        description: "Les modifications ont été enregistrées avec succès."
+      });
+      
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de l'équipe:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour l'équipe",
+        variant: "destructive"
+      });
+    }
+  };
   
   // Exportation des données au format CSV
   const handleExportCSV = () => {
@@ -107,7 +172,7 @@ const AdminDashboard = () => {
     }
     
     try {
-      // Préparation des données pour l'export CSV
+      // Préparation des données pour l'export CSV avec les nouveaux champs
       const flatData = registrations.map(team => ({
         id: team.id,
         equipe: team.generalInfo.name,
@@ -127,9 +192,20 @@ const AdminDashboard = () => {
           .map(([key]) => key)
           .join(', '),
         date_inscription: team.createdAt ? formatDate(team.createdAt) : 'N/A',
+        statut: team.status || 'Inscrit',
+        score_qcm: team.qcmScore !== undefined ? team.qcmScore : '',
+        qualifie_qcm: team.qcmQualified !== undefined ? (team.qcmQualified ? 'Oui' : 'Non') : '',
+        date_entretien: team.interviewDate || '',
+        heure_entretien: team.interviewTime || '',
+        lien_entretien: team.interviewLink || '',
+        score_entretien: team.interviewScore !== undefined ? team.interviewScore : '',
+        classement: team.interviewRank !== undefined ? team.interviewRank : '',
+        decision: team.decision || '',
+        notes_entretien: team.interviewNotes || '',
+        commentaires: team.comments || ''
       }));
       
-      downloadCSV(flatData, `igc_inscriptions_${new Date().toISOString().slice(0, 10)}.csv`);
+      downloadCSV(flatData, `igc_inscriptions_complet_${new Date().toISOString().slice(0, 10)}.csv`);
       
       toast({
         title: "Export réussi",
@@ -177,6 +253,17 @@ const AdminDashboard = () => {
           .map(([key]) => key)
           .join(', '),
         date_inscription: team.createdAt ? formatDate(team.createdAt) : 'N/A',
+        statut: team.status || 'Inscrit',
+        score_qcm: team.qcmScore !== undefined ? team.qcmScore : '',
+        qualifie_qcm: team.qcmQualified !== undefined ? (team.qcmQualified ? 'Oui' : 'Non') : '',
+        date_entretien: team.interviewDate || '',
+        heure_entretien: team.interviewTime || '',
+        lien_entretien: team.interviewLink || '',
+        score_entretien: team.interviewScore !== undefined ? team.interviewScore : '',
+        classement: team.interviewRank !== undefined ? team.interviewRank : '',
+        decision: team.decision || '',
+        notes_entretien: team.interviewNotes || '',
+        commentaires: team.comments || ''
       }));
       
       downloadCSV(flatData, `igc_inscriptions_filtrees_${new Date().toISOString().slice(0, 10)}.csv`);
@@ -211,6 +298,107 @@ const AdminDashboard = () => {
     }
   };
   
+  // Fonction pour calculer le classement des équipes
+  const calculateRankings = () => {
+    try {
+      // Séparer les équipes par catégorie
+      const secondaryTeams = registrations.filter(team => 
+        team.generalInfo.category === 'Secondaire' && 
+        team.interviewScore !== undefined
+      );
+      
+      const higherTeams = registrations.filter(team => 
+        team.generalInfo.category === 'Supérieur' && 
+        team.interviewScore !== undefined
+      );
+      
+      // Trier les équipes par score d'entretien (décroissant)
+      const sortedSecondary = [...secondaryTeams].sort((a, b) => 
+        (b.interviewScore || 0) - (a.interviewScore || 0)
+      );
+      
+      const sortedHigher = [...higherTeams].sort((a, b) => 
+        (b.interviewScore || 0) - (a.interviewScore || 0)
+      );
+      
+      // Attribution des rangs
+      let updatedTeams = [...registrations];
+      
+      sortedSecondary.forEach((team, index) => {
+        if (team.id) {
+          const rank = index + 1;
+          
+          // Déterminer automatiquement la décision finale
+          let decision: 'Sélectionné' | 'Non retenu' | undefined;
+          if (rank <= 20) {
+            decision = 'Sélectionné';
+          } else {
+            decision = 'Non retenu';
+          }
+          
+          // Mettre à jour l'équipe
+          updateRegistration(team.id, { 
+            interviewRank: rank,
+            decision,
+            status: decision === 'Sélectionné' ? 'Sélectionné' : 'Non retenu'
+          });
+          
+          // Mettre à jour l'état local
+          updatedTeams = updatedTeams.map(t => {
+            if (t.id === team.id) {
+              return { ...t, interviewRank: rank, decision, status: decision === 'Sélectionné' ? 'Sélectionné' : 'Non retenu' };
+            }
+            return t;
+          });
+        }
+      });
+      
+      sortedHigher.forEach((team, index) => {
+        if (team.id) {
+          const rank = index + 1;
+          
+          // Déterminer automatiquement la décision finale
+          let decision: 'Sélectionné' | 'Non retenu' | undefined;
+          if (rank <= 10) {
+            decision = 'Sélectionné';
+          } else {
+            decision = 'Non retenu';
+          }
+          
+          // Mettre à jour l'équipe
+          updateRegistration(team.id, { 
+            interviewRank: rank,
+            decision,
+            status: decision === 'Sélectionné' ? 'Sélectionné' : 'Non retenu'
+          });
+          
+          // Mettre à jour l'état local
+          updatedTeams = updatedTeams.map(t => {
+            if (t.id === team.id) {
+              return { ...t, interviewRank: rank, decision, status: decision === 'Sélectionné' ? 'Sélectionné' : 'Non retenu' };
+            }
+            return t;
+          });
+        }
+      });
+      
+      setRegistrations(updatedTeams);
+      
+      toast({
+        title: "Classement mis à jour",
+        description: `${sortedSecondary.length + sortedHigher.length} équipes ont été classées`
+      });
+      
+    } catch (error) {
+      console.error("Erreur lors du calcul des classements:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de calculer les classements",
+        variant: "destructive"
+      });
+    }
+  };
+  
   // Affichage des détails d'une équipe
   const viewTeamDetails = (team: TeamRegistration) => {
     setSelectedTeam(team);
@@ -224,12 +412,23 @@ const AdminDashboard = () => {
     const totalMembers = registrations.reduce((total, team) => total + team.members.filter(m => m.name).length, 0);
     const uniqueCities = new Set(registrations.map(team => team.generalInfo.city)).size;
     
+    const qcmSubmitted = registrations.filter(team => team.status === 'QCM soumis' || team.qcmScore !== undefined).length;
+    const qcmQualified = registrations.filter(team => team.qcmQualified === true).length;
+    const interviewScheduled = registrations.filter(team => team.interviewDate && team.interviewTime).length;
+    const interviewCompleted = registrations.filter(team => team.interviewScore !== undefined).length;
+    const selected = registrations.filter(team => team.decision === 'Sélectionné').length;
+    
     return {
       totalTeams,
       secondaryTeams,
       higherTeams,
       totalMembers,
-      uniqueCities
+      uniqueCities,
+      qcmSubmitted,
+      qcmQualified,
+      interviewScheduled,
+      interviewCompleted,
+      selected
     };
   }, [registrations]);
   
@@ -296,6 +495,40 @@ const AdminDashboard = () => {
             </Card>
           </div>
           
+          {/* Statistiques de progression */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <Card className="bg-yellow-50 border-yellow-200">
+              <CardContent className="p-4 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-yellow-700">{statistics.qcmSubmitted}</span>
+                <span className="text-sm text-muted-foreground">QCM soumis</span>
+              </CardContent>
+            </Card>
+            <Card className="bg-green-50 border-green-200">
+              <CardContent className="p-4 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-green-700">{statistics.qcmQualified}</span>
+                <span className="text-sm text-muted-foreground">Qualifiés QCM</span>
+              </CardContent>
+            </Card>
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="p-4 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-blue-700">{statistics.interviewScheduled}</span>
+                <span className="text-sm text-muted-foreground">Entretiens planifiés</span>
+              </CardContent>
+            </Card>
+            <Card className="bg-purple-50 border-purple-200">
+              <CardContent className="p-4 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-purple-700">{statistics.interviewCompleted}</span>
+                <span className="text-sm text-muted-foreground">Entretiens réalisés</span>
+              </CardContent>
+            </Card>
+            <Card className="bg-green-100 border-green-300">
+              <CardContent className="p-4 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-green-800">{statistics.selected}</span>
+                <span className="text-sm text-muted-foreground">Équipes sélectionnées</span>
+              </CardContent>
+            </Card>
+          </div>
+          
           {registrations.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center">
@@ -311,6 +544,9 @@ const AdminDashboard = () => {
                 <TabsList className="mb-4 md:mb-0">
                   <TabsTrigger value="list" className="flex items-center gap-1">
                     <Users className="w-4 h-4" /> Liste des équipes
+                  </TabsTrigger>
+                  <TabsTrigger value="tracking" className="flex items-center gap-1">
+                    <ClipboardList className="w-4 h-4" /> Suivi des équipes
                   </TabsTrigger>
                   {selectedTeam && (
                     <TabsTrigger value="details" className="flex items-center gap-1">
@@ -428,6 +664,59 @@ const AdminDashboard = () => {
                     </Table>
                   </div>
                 )}
+              </TabsContent>
+              
+              <TabsContent value="tracking" className="mt-4">
+                <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Select
+                      value={categoryFilter}
+                      onValueChange={(value) => setCategoryFilter(value as TeamCategory | "all")}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Catégorie" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Toutes catégories</SelectItem>
+                        <SelectItem value="Secondaire">Secondaire</SelectItem>
+                        <SelectItem value="Supérieur">Supérieur</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select
+                      value={statusFilter}
+                      onValueChange={(value) => setStatusFilter(value as TeamStatus | "all")}
+                    >
+                      <SelectTrigger className="w-[220px]">
+                        <SelectValue placeholder="Statut" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous les statuts</SelectItem>
+                        <SelectItem value="Inscrit">Inscrit</SelectItem>
+                        <SelectItem value="QCM soumis">QCM soumis</SelectItem>
+                        <SelectItem value="Éliminé QCM">Éliminé QCM</SelectItem>
+                        <SelectItem value="Qualifié pour entretien">Qualifié pour entretien</SelectItem>
+                        <SelectItem value="Entretien réalisé">Entretien réalisé</SelectItem>
+                        <SelectItem value="Sélectionné">Sélectionné</SelectItem>
+                        <SelectItem value="Non retenu">Non retenu</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Button 
+                    onClick={calculateRankings}
+                    className="bg-igc-navy hover:bg-igc-navy/90"
+                  >
+                    Calculer les classements
+                  </Button>
+                </div>
+                
+                <div className="border rounded-lg overflow-hidden">
+                  <TeamTrackingTable 
+                    teams={filteredTeams} 
+                    onTeamUpdate={handleTeamUpdate} 
+                  />
+                </div>
               </TabsContent>
               
               {selectedTeam && (

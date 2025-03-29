@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
-import { UserPlus, UserCog, Mail, Info, ArrowRight } from 'lucide-react';
+import { UserPlus, Mail, Info, ArrowRight } from 'lucide-react';
 
 const Index = () => {
   const { toast } = useToast();
@@ -38,18 +38,6 @@ const Index = () => {
                 <UserPlus className="w-5 h-5" />
                 <span>Inscription d'équipe</span>
                 <ArrowRight className="w-4 h-4 ml-1" />
-              </Link>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="w-full md:w-64 text-igc-magenta border-igc-magenta/30 hover:bg-igc-magenta/10" 
-              size="lg"
-              asChild
-            >
-              <Link to="/admin" className="flex items-center justify-center gap-2">
-                <UserCog className="w-5 h-5" />
-                Espace administrateur
               </Link>
             </Button>
           </div>

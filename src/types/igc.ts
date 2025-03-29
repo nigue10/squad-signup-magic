@@ -2,6 +2,15 @@
 export type TeamCategory = 'Secondaire' | 'Supérieur';
 export type Gender = 'M' | 'F';
 export type RoboticsLevel = 'Débutant' | 'Intermédiaire' | 'Avancé';
+export type TeamStatus = 
+  | 'Inscrit' 
+  | 'QCM soumis' 
+  | 'Éliminé QCM' 
+  | 'Qualifié pour entretien' 
+  | 'Entretien réalisé'
+  | 'Sélectionné'
+  | 'Non retenu';
+export type TeamDecision = 'Sélectionné' | 'Non retenu' | '';
 
 export interface TeamMember {
   id: string;
@@ -56,4 +65,17 @@ export interface TeamRegistration {
   skills: TeamSkills;
   vision: TeamVision;
   createdAt?: string;
+  
+  // Champs additionnels pour le processus de sélection
+  status?: TeamStatus;
+  qcmScore?: number;
+  qcmQualified?: boolean;
+  interviewDate?: string;
+  interviewTime?: string;
+  interviewLink?: string;
+  interviewScore?: number;
+  interviewNotes?: string;
+  interviewRank?: number;
+  decision?: TeamDecision;
+  comments?: string;
 }
