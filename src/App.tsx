@@ -8,6 +8,8 @@ import Index from "./pages/Index";
 import RegistrationForm from "./pages/RegistrationForm";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminSettings from "./pages/AdminSettings";
+import UserGuide from "./pages/UserGuide";
 import NotFound from "./pages/NotFound";
 import AdminPortal from "./pages/AdminPortal";
 
@@ -22,9 +24,11 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/registration" element={<RegistrationForm />} />
+          <Route path="/guide" element={<UserGuide />} />
           <Route path="/admin-portal" element={<AdminPortal />} />
           <Route path="/admin" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/settings" element={<AdminSettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

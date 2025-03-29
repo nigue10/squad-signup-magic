@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Table, 
@@ -39,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { TeamRegistration, TeamStatus, TeamCategory, TeamDecision } from '@/types/igc';
 import { useToast } from "@/components/ui/use-toast";
 import { Check, X, MoreHorizontal, Calendar, Clock, Link2, Edit, Save, FileCheck } from 'lucide-react';
+import { getSettings } from '@/lib/settings';
 
 interface TeamTrackingTableProps {
   teams: TeamRegistration[];
@@ -53,9 +53,14 @@ const TeamTrackingTable = ({ teams, onTeamUpdate }: TeamTrackingTableProps) => {
   const [editScoreDialog, setEditScoreDialog] = useState<string | null>(null);
   const [editNotesDialog, setEditNotesDialog] = useState<string | null>(null);
   
+  // Récupérer les paramètres configurables
+  const settings = getSettings();
+  
   // Fonction pour calculer si une équipe est qualifiée pour l'entretien
   const calculateQcmQualification = (score: number, category: TeamCategory): boolean => {
-    const threshold = category === 'Secondaire' ? 60 : 70;
+    const threshold = category === 'Secondaire' 
+      ? settings.secondaryQcmThreshold 
+      : settings.higherQcmThreshold;
     return score >= threshold;
   };
   
