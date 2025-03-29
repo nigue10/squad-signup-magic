@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
-import { UserPlus, UserCog, Mail, Info } from 'lucide-react';
+import { UserPlus, UserCog, Mail, Info, ArrowRight } from 'lucide-react';
 
 const Index = () => {
   const { toast } = useToast();
@@ -24,7 +24,7 @@ const Index = () => {
       </div>
       
       <div className="max-w-2xl w-full mx-auto text-center">
-        <h1 className="text-3xl md:text-4xl font-bold text-igc-navy mb-4">IGC 2025</h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-igc-navy mb-2">IGC 2025</h1>
         <h2 className="text-xl md:text-2xl font-medium text-igc-magenta mb-8">Ivorian Genius Contest</h2>
         
         <div className="p-6 md:p-8 bg-white rounded-lg shadow-lg mb-8 border border-igc-purple/20">
@@ -33,10 +33,11 @@ const Index = () => {
           </p>
           
           <div className="space-y-4">
-            <Button asChild className="w-full md:w-64 bg-igc-navy hover:bg-igc-navy/90" size="lg">
+            <Button asChild className="w-full md:w-64 bg-gradient-to-r from-igc-navy to-igc-magenta hover:opacity-90" size="lg">
               <Link to="/registration" className="flex items-center justify-center gap-2">
                 <UserPlus className="w-5 h-5" />
-                Inscription d'équipe
+                <span>Inscription d'équipe</span>
+                <ArrowRight className="w-4 h-4 ml-1" />
               </Link>
             </Button>
             
@@ -53,15 +54,22 @@ const Index = () => {
             </Button>
           </div>
           
-          <div className="mt-8 p-4 bg-igc-navy/5 rounded-lg">
-            <h3 className="text-lg font-semibold text-igc-navy mb-2 flex items-center justify-center gap-2">
-              <Info className="w-5 h-5" /> Nouveautés 2025
+          <div className="mt-8 p-5 bg-gradient-to-r from-igc-navy/5 to-igc-purple/10 rounded-lg border border-igc-purple/10">
+            <h3 className="text-lg font-semibold text-igc-navy mb-3 flex items-center justify-center gap-2">
+              <Info className="w-5 h-5 text-igc-magenta" /> Nouveautés 2025
             </h3>
-            <p className="text-sm">
-              Cette année, l'IGC accueille deux catégories: Secondaire et Supérieur. 
-              Les équipes du secondaire doivent compter 6 membres, tandis que les équipes 
-              du supérieur peuvent participer avec un minimum de 4 membres.
-            </p>
+            <div className="text-sm space-y-2">
+              <p className="bg-white/50 p-2 rounded-md">
+                Cette année, l'IGC accueille deux catégories: <span className="font-medium text-igc-navy">Secondaire</span> et <span className="font-medium text-igc-navy">Supérieur</span>.
+              </p>
+              <p className="bg-white/50 p-2 rounded-md">
+                Les équipes du secondaire doivent compter <span className="font-medium text-igc-magenta">6 membres</span>, tandis que les équipes 
+                du supérieur peuvent participer avec un minimum de <span className="font-medium text-igc-magenta">4 membres</span>.
+              </p>
+              <p className="text-xs italic mt-2">
+                Les équipes composées de filles sont très encouragées.
+              </p>
+            </div>
           </div>
         </div>
         
