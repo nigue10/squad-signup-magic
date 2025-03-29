@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { UserPlus, UserCog, Mail, Info } from 'lucide-react';
 
 const Index = () => {
   const { toast } = useToast();
@@ -33,7 +34,8 @@ const Index = () => {
           
           <div className="space-y-4">
             <Button asChild className="w-full md:w-64 bg-igc-navy hover:bg-igc-navy/90" size="lg">
-              <Link to="/registration">
+              <Link to="/registration" className="flex items-center justify-center gap-2">
+                <UserPlus className="w-5 h-5" />
                 Inscription d'équipe
               </Link>
             </Button>
@@ -42,23 +44,35 @@ const Index = () => {
               variant="outline" 
               className="w-full md:w-64 text-igc-magenta border-igc-magenta/30 hover:bg-igc-magenta/10" 
               size="lg"
-              onClick={() => {
-                toast({
-                  title: "Espace administrateur",
-                  description: "Accès restreint. Veuillez vous connecter.",
-                });
-              }}
               asChild
             >
-              <Link to="/admin">
+              <Link to="/admin" className="flex items-center justify-center gap-2">
+                <UserCog className="w-5 h-5" />
                 Espace administrateur
               </Link>
             </Button>
           </div>
+          
+          <div className="mt-8 p-4 bg-igc-navy/5 rounded-lg">
+            <h3 className="text-lg font-semibold text-igc-navy mb-2 flex items-center justify-center gap-2">
+              <Info className="w-5 h-5" /> Nouveautés 2025
+            </h3>
+            <p className="text-sm">
+              Cette année, l'IGC accueille deux catégories: Secondaire et Supérieur. 
+              Les équipes du secondaire doivent compter 6 membres, tandis que les équipes 
+              du supérieur peuvent participer avec un minimum de 4 membres.
+            </p>
+          </div>
         </div>
         
-        <div className="text-sm text-igc-navy/70">
-          <p>Pour toute assistance, contactez-nous à igc2025@example.com</p>
+        <div className="text-sm text-igc-navy/70 flex flex-col md:flex-row items-center justify-center gap-2">
+          <p>Pour toute assistance, contactez-nous</p>
+          <a 
+            href="mailto:igc2025@example.com" 
+            className="flex items-center gap-1 text-igc-magenta hover:underline"
+          >
+            <Mail className="w-4 h-4" /> igc2025@example.com
+          </a>
         </div>
       </div>
     </div>

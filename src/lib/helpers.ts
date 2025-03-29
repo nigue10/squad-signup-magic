@@ -57,23 +57,41 @@ export const downloadCSV = (data: any[], filename: string) => {
   // Obtenir les en-têtes (toutes les clés du premier objet)
   const headers = Object.keys(data[0]);
   
+  // Convertir les en-têtes en français et améliorer la présentation
+  const headerLabels = headers.map(header => {
+    const label = header
+      .replace(/_/g, ' ')        // Remplace les underscores par des espaces
+      .replace(/\b\w/g, l => l.toUpperCase());  // Met la première lettre de chaque mot en majuscule
+    return label;
+  });
+  
   // Créer la ligne d'en-tête
-  let csv = headers.join(',') + '\n';
+  let csv = headerLabels.join(';') + '\n';
   
   // Ajouter les lignes de données
   data.forEach((item) => {
     const row = headers.map(header => {
-      // Entourer les valeurs contenant des virgules de guillemets
+      // Gérer les valeurs spéciales, les virgules et les points-virgules
       const value = item[header] === null || item[header] === undefined ? '' : item[header];
-      return typeof value === 'string' && value.includes(',') 
-        ? `"${value}"` 
-        : value;
-    }).join(',');
+      
+      // Si la valeur contient un point-virgule, on l'entoure de guillemets
+      if (typeof value === 'string' && (value.includes(';') || value.includes('"'))) {
+        // Si la valeur contient déjà des guillemets, on les double
+        const escapedValue = value.replace(/"/g, '""');
+        return `"${escapedValue}"`;
+      }
+      
+      return value;
+    }).join(';');
+    
     csv += row + '\n';
   });
   
-  // Créer un blob et le télécharger
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  // Ajouter BOM pour assurer une bonne détection UTF-8 dans Excel
+  const BOM = "\uFEFF";
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+  
+  // Télécharger le fichier
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
   
@@ -84,4 +102,9 @@ export const downloadCSV = (data: any[], filename: string) => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+};
+
+// Formate une valeur booléenne en texte
+export const formatBoolean = (value: boolean, trueText = 'Oui', falseText = 'Non'): string => {
+  return value ? trueText : falseText;
 };

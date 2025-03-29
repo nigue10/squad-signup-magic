@@ -1,12 +1,14 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import LogoHeader from '@/components/LogoHeader';
 import { getAllRegistrations } from '@/lib/storage';
-import { TeamRegistration } from '@/types/igc';
+import { TeamRegistration, TeamCategory } from '@/types/igc';
 import { formatDate, downloadCSV } from '@/lib/helpers';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
@@ -18,14 +20,32 @@ import {
   School,
   MapPin,
   Flag,
-  Award
+  Award,
+  Search,
+  Filter,
+  LogOut,
+  Download,
+  Trash,
+  AlertTriangle
 } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import AdminTeamActions from '@/components/AdminTeamActions';
 
 const AdminDashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [registrations, setRegistrations] = useState<TeamRegistration[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<TeamRegistration | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<TeamCategory | "all">("all");
+  const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   
   // Vérification de l'authentification
   useEffect(() => {
@@ -49,6 +69,31 @@ const AdminDashboard = () => {
       });
     }
   }, [toast]);
+
+  // Filtrage des équipes
+  const filteredTeams = useMemo(() => {
+    return registrations
+      .filter(team => {
+        // Filtre par recherche
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch = 
+          team.generalInfo.name.toLowerCase().includes(searchLower) ||
+          team.generalInfo.institution.toLowerCase().includes(searchLower) ||
+          team.generalInfo.city.toLowerCase().includes(searchLower) ||
+          team.generalInfo.teamLeaderName.toLowerCase().includes(searchLower);
+        
+        // Filtre par catégorie
+        const matchesCategory = 
+          categoryFilter === "all" || 
+          team.generalInfo.category === categoryFilter;
+        
+        return matchesSearch && matchesCategory;
+      })
+      .sort((a, b) => {
+        // Tri par date d'inscription (la plus récente en premier)
+        return new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime();
+      });
+  }, [registrations, searchTerm, categoryFilter]);
   
   // Exportation des données au format CSV
   const handleExportCSV = () => {
@@ -65,19 +110,26 @@ const AdminDashboard = () => {
       // Préparation des données pour l'export CSV
       const flatData = registrations.map(team => ({
         id: team.id,
-        team_name: team.generalInfo.name,
-        category: team.generalInfo.category,
-        city: team.generalInfo.city,
+        equipe: team.generalInfo.name,
+        categorie: team.generalInfo.category,
+        ville: team.generalInfo.city,
         commune: team.generalInfo.commune,
         institution: team.generalInfo.institution,
-        team_leader: team.generalInfo.teamLeaderName,
-        members_count: team.members.filter(m => m.name).length,
-        robotics_level: team.vision.roboticsLevel,
-        has_workspace: team.vision.hasWorkspace ? 'Oui' : 'Non',
-        created_at: team.createdAt,
+        chef_equipe: team.generalInfo.teamLeaderName,
+        referent: team.generalInfo.pedagogicalReferentName || "N/A",
+        contact_referent: team.generalInfo.pedagogicalReferentPhone || "N/A",
+        email_referent: team.generalInfo.pedagogicalReferentEmail || "N/A",
+        nombre_membres: team.members.filter(m => m.name).length,
+        niveau_robotique: team.vision.roboticsLevel,
+        espace_travail: team.vision.hasWorkspace ? 'Oui' : 'Non',
+        competences: Object.entries(team.skills)
+          .filter(([key, value]) => value === true && key !== 'other')
+          .map(([key]) => key)
+          .join(', '),
+        date_inscription: team.createdAt ? formatDate(team.createdAt) : 'N/A',
       }));
       
-      downloadCSV(flatData, `igc_registrations_${new Date().toISOString().slice(0, 10)}.csv`);
+      downloadCSV(flatData, `igc_inscriptions_${new Date().toISOString().slice(0, 10)}.csv`);
       
       toast({
         title: "Export réussi",
@@ -93,31 +145,156 @@ const AdminDashboard = () => {
     }
   };
   
+  // Exporter seulement les équipes filtrées
+  const handleExportFiltered = () => {
+    if (filteredTeams.length === 0) {
+      toast({
+        title: "Aucune donnée",
+        description: "Il n'y a aucune équipe à exporter",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      // Préparation des données filtrées pour l'export CSV
+      const flatData = filteredTeams.map(team => ({
+        id: team.id,
+        equipe: team.generalInfo.name,
+        categorie: team.generalInfo.category,
+        ville: team.generalInfo.city,
+        commune: team.generalInfo.commune,
+        institution: team.generalInfo.institution,
+        chef_equipe: team.generalInfo.teamLeaderName,
+        referent: team.generalInfo.pedagogicalReferentName || "N/A",
+        contact_referent: team.generalInfo.pedagogicalReferentPhone || "N/A",
+        email_referent: team.generalInfo.pedagogicalReferentEmail || "N/A",
+        nombre_membres: team.members.filter(m => m.name).length,
+        niveau_robotique: team.vision.roboticsLevel,
+        espace_travail: team.vision.hasWorkspace ? 'Oui' : 'Non',
+        competences: Object.entries(team.skills)
+          .filter(([key, value]) => value === true && key !== 'other')
+          .map(([key]) => key)
+          .join(', '),
+        date_inscription: team.createdAt ? formatDate(team.createdAt) : 'N/A',
+      }));
+      
+      downloadCSV(flatData, `igc_inscriptions_filtrees_${new Date().toISOString().slice(0, 10)}.csv`);
+      
+      toast({
+        title: "Export réussi",
+        description: `${flatData.length} équipes exportées avec succès`,
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'export:", error);
+      toast({
+        title: "Erreur d'export",
+        description: "Impossible d'exporter les données filtrées",
+        variant: "destructive",
+      });
+    }
+  };
+  
   // Déconnexion
   const handleLogout = () => {
-    localStorage.removeItem('admin_authenticated');
-    navigate('/admin');
+    if (isConfirmingLogout) {
+      localStorage.removeItem('admin_authenticated');
+      toast({
+        title: "Déconnexion réussie",
+        description: "Vous avez été déconnecté avec succès"
+      });
+      navigate('/admin');
+    } else {
+      setIsConfirmingLogout(true);
+      // Réinitialiser après 3 secondes
+      setTimeout(() => setIsConfirmingLogout(false), 3000);
+    }
   };
   
   // Affichage des détails d'une équipe
   const viewTeamDetails = (team: TeamRegistration) => {
     setSelectedTeam(team);
   };
+
+  // Statistiques des inscriptions
+  const statistics = useMemo(() => {
+    const totalTeams = registrations.length;
+    const secondaryTeams = registrations.filter(team => team.generalInfo.category === 'Secondaire').length;
+    const higherTeams = registrations.filter(team => team.generalInfo.category === 'Supérieur').length;
+    const totalMembers = registrations.reduce((total, team) => total + team.members.filter(m => m.name).length, 0);
+    const uniqueCities = new Set(registrations.map(team => team.generalInfo.city)).size;
+    
+    return {
+      totalTeams,
+      secondaryTeams,
+      higherTeams,
+      totalMembers,
+      uniqueCities
+    };
+  }, [registrations]);
   
   return (
     <div className="min-h-screen bg-igc-gray">
-      <div className="container mx-auto py-8 px-4">
-        <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
-          <div className="flex justify-between items-center mb-6">
+      <div className="container mx-auto py-6 px-4">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <LogoHeader />
-            <Button variant="outline" onClick={handleLogout}>
-              Déconnexion
+            <Button 
+              variant="outline" 
+              onClick={handleLogout}
+              className="flex items-center gap-2"
+            >
+              {isConfirmingLogout ? (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                  Confirmer la déconnexion
+                </>
+              ) : (
+                <>
+                  <LogOut className="h-4 w-4" />
+                  Déconnexion
+                </>
+              )}
             </Button>
           </div>
           
-          <h1 className="text-2xl md:text-3xl font-bold text-center text-igc-blue mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-center text-igc-blue mb-6">
             Tableau de bord administrateur
           </h1>
+          
+          {/* Statistiques */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <Card className="bg-igc-navy/5 border-igc-navy/20">
+              <CardContent className="p-4 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-igc-navy">{statistics.totalTeams}</span>
+                <span className="text-sm text-muted-foreground">Équipes</span>
+              </CardContent>
+            </Card>
+            <Card className="bg-igc-magenta/5 border-igc-magenta/20">
+              <CardContent className="p-4 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-igc-magenta">{statistics.secondaryTeams}</span>
+                <span className="text-sm text-muted-foreground">Secondaire</span>
+              </CardContent>
+            </Card>
+            <Card className="bg-igc-purple/5 border-igc-purple/20">
+              <CardContent className="p-4 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-igc-purple">{statistics.higherTeams}</span>
+                <span className="text-sm text-muted-foreground">Supérieur</span>
+              </CardContent>
+            </Card>
+            <Card className="bg-igc-navy/5 border-igc-navy/20">
+              <CardContent className="p-4 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-igc-navy">{statistics.totalMembers}</span>
+                <span className="text-sm text-muted-foreground">Participants</span>
+              </CardContent>
+            </Card>
+            <Card className="bg-igc-magenta/5 border-igc-magenta/20">
+              <CardContent className="p-4 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-igc-magenta">{statistics.uniqueCities}</span>
+                <span className="text-sm text-muted-foreground">Villes</span>
+              </CardContent>
+            </Card>
+          </div>
           
           {registrations.length === 0 ? (
             <Card>
@@ -130,8 +307,8 @@ const AdminDashboard = () => {
             </Card>
           ) : (
             <Tabs defaultValue="list">
-              <div className="flex justify-between items-center mb-4">
-                <TabsList>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
+                <TabsList className="mb-4 md:mb-0">
                   <TabsTrigger value="list" className="flex items-center gap-1">
                     <Users className="w-4 h-4" /> Liste des équipes
                   </TabsTrigger>
@@ -142,62 +319,115 @@ const AdminDashboard = () => {
                   )}
                 </TabsList>
                 
-                <Button 
-                  variant="outline" 
-                  className="flex items-center gap-2"
-                  onClick={handleExportCSV}
-                >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  Exporter CSV
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex items-center gap-2"
+                    onClick={handleExportCSV}
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Exporter tout
+                  </Button>
+                  
+                  {filteredTeams.length > 0 && filteredTeams.length < registrations.length && (
+                    <Button 
+                      variant="outline" 
+                      className="flex items-center gap-2"
+                      onClick={handleExportFiltered}
+                    >
+                      <Download className="w-4 h-4" />
+                      Exporter la sélection ({filteredTeams.length})
+                    </Button>
+                  )}
+                </div>
               </div>
               
               <TabsContent value="list" className="mt-4">
-                <div className="overflow-x-auto">
-                  <table className="w-full form-table">
-                    <thead>
-                      <tr>
-                        <th>Équipe</th>
-                        <th>Catégorie</th>
-                        <th>Institution</th>
-                        <th>Ville</th>
-                        <th>Membres</th>
-                        <th>Date d'inscription</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {registrations.map((team) => (
-                        <tr key={team.id}>
-                          <td className="font-medium">{team.generalInfo.name}</td>
-                          <td>
-                            <Badge variant={team.generalInfo.category === 'Secondaire' ? 'secondary' : 'outline'}>
-                              {team.generalInfo.category}
-                            </Badge>
-                          </td>
-                          <td>{team.generalInfo.institution}</td>
-                          <td>{team.generalInfo.city}</td>
-                          <td className="text-center">
-                            {team.members.filter(m => m.name).length}
-                          </td>
-                          <td>
-                            {team.createdAt ? formatDate(team.createdAt) : 'N/A'}
-                          </td>
-                          <td>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="flex items-center gap-1"
-                              onClick={() => viewTeamDetails(team)}
-                            >
-                              <Eye className="w-4 h-4" /> Voir
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Filtres */}
+                <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                  <div className="relative flex-grow">
+                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      placeholder="Rechercher une équipe, institution, ville..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                  
+                  <div className="flex gap-2 items-center">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <Select
+                      value={categoryFilter}
+                      onValueChange={(value) => setCategoryFilter(value as TeamCategory | "all")}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Catégorie" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Toutes catégories</SelectItem>
+                        <SelectItem value="Secondaire">Secondaire</SelectItem>
+                        <SelectItem value="Supérieur">Supérieur</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+                
+                {filteredTeams.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-muted-foreground">Aucune équipe ne correspond à votre recherche.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          <TableHead>Équipe</TableHead>
+                          <TableHead>Catégorie</TableHead>
+                          <TableHead className="hidden md:table-cell">Institution</TableHead>
+                          <TableHead className="hidden md:table-cell">Ville</TableHead>
+                          <TableHead className="hidden md:table-cell text-center">Membres</TableHead>
+                          <TableHead className="text-right">Date</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredTeams.map((team) => (
+                          <TableRow key={team.id} className="hover:bg-muted/30">
+                            <TableCell className="font-medium">{team.generalInfo.name}</TableCell>
+                            <TableCell>
+                              <Badge variant={team.generalInfo.category === 'Secondaire' ? 'secondary' : 'outline'}>
+                                {team.generalInfo.category}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {team.generalInfo.institution}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {team.generalInfo.city}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-center">
+                              {team.members.filter(m => m.name).length}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {team.createdAt ? formatDate(team.createdAt) : 'N/A'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="flex items-center gap-1"
+                                onClick={() => viewTeamDetails(team)}
+                              >
+                                <Eye className="w-4 h-4" /> Voir
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </TabsContent>
               
               {selectedTeam && (
@@ -314,44 +544,45 @@ const AdminDashboard = () => {
                             <h3 className="text-lg font-semibold border-b pb-2">Membres de l'équipe</h3>
                             
                             <div className="overflow-x-auto">
-                              <table className="w-full form-table">
-                                <thead>
-                                  <tr>
-                                    <th>Nom</th>
-                                    <th>Genre</th>
-                                    <th>Date de naissance</th>
-                                    <th>Niveau</th>
-                                    <th>École</th>
-                                    <th>Ville</th>
-                                    <th>Contact</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Nom</TableHead>
+                                    <TableHead>Genre</TableHead>
+                                    <TableHead>Date de naissance</TableHead>
+                                    <TableHead>Niveau</TableHead>
+                                    <TableHead>École</TableHead>
+                                    <TableHead>Ville</TableHead>
+                                    <TableHead>Contact</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
                                   {selectedTeam.members
                                     .filter(member => member.name)
                                     .map((member) => (
-                                      <tr key={member.id}>
-                                        <td className="font-medium">{member.name}</td>
-                                        <td>{member.gender}</td>
-                                        <td>{formatDate(member.birthDate)}</td>
-                                        <td>{member.level}</td>
-                                        <td>{member.school}</td>
-                                        <td>{member.city}</td>
-                                        <td className="text-sm">
+                                      <TableRow key={member.id}>
+                                        <TableCell className="font-medium">{member.name}</TableCell>
+                                        <TableCell>{member.gender}</TableCell>
+                                        <TableCell>{formatDate(member.birthDate)}</TableCell>
+                                        <TableCell>{member.level}</TableCell>
+                                        <TableCell>{member.school}</TableCell>
+                                        <TableCell>{member.city}</TableCell>
+                                        <TableCell className="text-sm">
                                           {member.email && <div>{member.email}</div>}
                                           {member.phone && <div>{member.phone}</div>}
-                                        </td>
-                                      </tr>
+                                        </TableCell>
+                                      </TableRow>
                                     ))}
-                                </tbody>
-                              </table>
+                                </TableBody>
+                              </Table>
                             </div>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
                     
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                      <AdminTeamActions team={selectedTeam} />
                       <Button 
                         variant="outline" 
                         onClick={() => setSelectedTeam(null)}
