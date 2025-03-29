@@ -63,6 +63,10 @@ export default {
           blue: "hsl(var(--igc-blue))",
           lightblue: "hsl(var(--igc-lightblue))",
           gray: "hsl(var(--igc-gray))",
+          navy: "#1b1464",
+          purple: "#cc99cc",
+          magenta: "#96005d",
+          pink: "#a6005d"
         },
       },
       borderRadius: {
