@@ -164,9 +164,9 @@ export const generateTeamPDF = async (teamId: string): Promise<void> => {
   yPos += 8;
   
   // Note sur les équipes avec filles
-  doc.setFontStyle("italic");
+  doc.setFont("helvetica", "italic");
   doc.text("NB : Les équipes composées de filles sont très encouragées.", 15, yPos);
-  doc.setFontStyle("normal");
+  doc.setFont("helvetica", "normal");
   
   yPos += 15;
   
