@@ -35,23 +35,36 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TeamRegistration, TeamStatus, TeamCategory, TeamDecision } from '@/types/igc';
 import { useToast } from "@/components/ui/use-toast";
-import { Check, X, MoreHorizontal, Calendar, Clock, Link2, Edit, Save, FileCheck } from 'lucide-react';
+import { Check, X, MoreHorizontal, Calendar, Clock, Link2, Edit, Save, FileCheck, Trash, FileText } from 'lucide-react';
 import { getSettings } from '@/lib/settings';
 
 interface TeamTrackingTableProps {
   teams: TeamRegistration[];
   onTeamUpdate: (teamId: string, updatedData: Partial<TeamRegistration>) => void;
+  onTeamDelete?: (teamId: string) => void;
+  onExportTeamPDF?: (teamId: string) => void;
 }
 
-const TeamTrackingTable = ({ teams, onTeamUpdate }: TeamTrackingTableProps) => {
+const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF }: TeamTrackingTableProps) => {
   const { toast } = useToast();
   const [editingTeam, setEditingTeam] = useState<string | null>(null);
   const [tempData, setTempData] = useState<Partial<TeamRegistration>>({});
   const [planningDialog, setPlanningDialog] = useState<string | null>(null);
   const [editScoreDialog, setEditScoreDialog] = useState<string | null>(null);
   const [editNotesDialog, setEditNotesDialog] = useState<string | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
   
   // Récupérer les paramètres configurables
   const settings = getSettings();
@@ -164,6 +177,18 @@ const TeamTrackingTable = ({ teams, onTeamUpdate }: TeamTrackingTableProps) => {
       decision: team.decision,
       comments: team.comments
     });
+  };
+
+  // Gérer la suppression d'une équipe
+  const handleDeleteTeam = (teamId: string) => {
+    if (onTeamDelete) {
+      onTeamDelete(teamId);
+      toast({
+        title: "Équipe supprimée",
+        description: "L'équipe a été supprimée avec succès."
+      });
+      setDeleteDialog(null);
+    }
   };
   
   return (
@@ -336,6 +361,21 @@ const TeamTrackingTable = ({ teams, onTeamUpdate }: TeamTrackingTableProps) => {
                       }}>
                         <Edit className="mr-2 h-4 w-4" /> Éditer notes/commentaires
                       </DropdownMenuItem>
+
+                      {onExportTeamPDF && (
+                        <DropdownMenuItem onClick={() => onExportTeamPDF(team.id!)}>
+                          <FileText className="mr-2 h-4 w-4" /> Exporter fiche PDF
+                        </DropdownMenuItem>
+                      )}
+                      
+                      {onTeamDelete && (
+                        <DropdownMenuItem 
+                          onClick={() => setDeleteDialog(team.id!)}
+                          className="text-red-600 hover:text-red-700 focus:text-red-700"
+                        >
+                          <Trash className="mr-2 h-4 w-4" /> Supprimer l'équipe
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -551,6 +591,27 @@ const TeamTrackingTable = ({ teams, onTeamUpdate }: TeamTrackingTableProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de confirmation de suppression */}
+      <AlertDialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette équipe ? Cette action ne peut pas être annulée.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteDialog && handleDeleteTeam(deleteDialog)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

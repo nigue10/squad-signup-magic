@@ -38,7 +38,7 @@ const Index = () => {
             <Button asChild className="w-full md:w-64 bg-gradient-to-r from-igc-navy to-igc-magenta hover:opacity-90" size="lg">
               <Link to="/registration" className="flex items-center justify-center gap-2">
                 <UserPlus className="w-5 h-5" />
-                <span>Inscription d'équipe</span>
+                <span>Fiche de renseignements</span>
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Link>
             </Button>

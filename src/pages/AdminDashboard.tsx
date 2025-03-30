@@ -1,13 +1,21 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import TeamTrackingTable from '@/components/TeamTrackingTable';
-import { getAllRegistrations, updateRegistration } from '@/lib/storage';
+import { 
+  getAllRegistrations, 
+  updateRegistration, 
+  deleteRegistration,
+  exportAllRegistrationsToCSV
+} from '@/lib/storage';
 import { TeamRegistration, TeamStatus, TeamCategory } from '@/types/igc';
-import { BarChart, Download, Settings, LogOut } from 'lucide-react';
+import { BarChart, Download, Settings, LogOut, FileText } from 'lucide-react';
 import { getSettings } from '@/lib/settings';
+import { generateTeamPDF } from '@/lib/pdfGenerator';
+import { toast } from 'sonner';
 
 interface CategorizedCounts {
   secondaire: number;
@@ -43,24 +51,32 @@ const AdminDashboard = () => {
 
   // Exporter les données au format CSV
   const exportToCSV = () => {
-    const csvRows = [];
-    const headers = Object.keys(teams[0].generalInfo);
-    csvRows.push(headers.join(','));
-
-    for (const team of teams) {
-      const values = Object.values(team.generalInfo).map(value => `"${value}"`);
-      csvRows.push(values.join(','));
+    const csvData = exportAllRegistrationsToCSV();
+    if (!csvData) {
+      toast.error("Aucune donnée à exporter");
+      return;
     }
-
-    const csvData = csvRows.join('\n');
+    
     const blob = new Blob([csvData], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.setAttribute('href', url);
-    a.setAttribute('download', 'igc_registrations.csv');
+    a.setAttribute('download', `igc_equipes_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    toast.success("Données exportées avec succès");
+  };
+
+  // Exporter une équipe spécifique au format PDF
+  const exportTeamPDF = async (teamId: string) => {
+    try {
+      await generateTeamPDF(teamId);
+      toast.success("Fiche d'équipe exportée en PDF");
+    } catch (error) {
+      console.error("Erreur lors de l'exportation PDF:", error);
+      toast.error("Erreur lors de l'exportation PDF");
+    }
   };
 
   // Mettre à jour une équipe
@@ -80,24 +96,76 @@ const AdminDashboard = () => {
     }
   };
 
+  // Supprimer une équipe
+  const handleTeamDelete = (teamId: string) => {
+    deleteRegistration(teamId);
+    
+    // Mettre à jour la liste des équipes
+    setTeams(prev => prev.filter(team => team.id !== teamId));
+    
+    // Mettre à jour les classements après la suppression
+    updateTeamRankings();
+  };
+
   // Mettre à jour le classement des équipes après un entretien
   const updateTeamRankings = () => {
-    // Trier les équipes par score d'entretien décroissant
-    const sortedTeams = [...teams].sort((a, b) => {
-      // Gérer le cas où interviewScore est undefined
-      const scoreA = a.interviewScore === undefined ? -1 : a.interviewScore;
-      const scoreB = b.interviewScore === undefined ? -1 : b.interviewScore;
-      return scoreB - scoreA;
-    });
-
-    // Assigner le rang en fonction du score
-    const rankedTeams = sortedTeams.map((team, index) => ({
-      ...team,
-      interviewRank: index + 1,
-    }));
-
+    // Séparer les équipes par catégorie
+    const secondaryTeams = teams.filter(team => team.generalInfo.category === 'Secondaire');
+    const higherTeams = teams.filter(team => team.generalInfo.category === 'Supérieur');
+    
+    // Mettre à jour le classement pour chaque catégorie séparément
+    const updateCategoryRankings = (categoryTeams: TeamRegistration[]) => {
+      // Trier les équipes par score d'entretien décroissant
+      const sortedTeams = [...categoryTeams].sort((a, b) => {
+        // Gérer le cas où interviewScore est undefined
+        const scoreA = a.interviewScore === undefined ? -1 : a.interviewScore;
+        const scoreB = b.interviewScore === undefined ? -1 : b.interviewScore;
+        return scoreB - scoreA;
+      });
+      
+      // Assigner le rang en fonction du score (seulement aux équipes avec un score)
+      return sortedTeams.map((team, index) => {
+        if (team.interviewScore !== undefined) {
+          return {
+            ...team,
+            interviewRank: index + 1,
+            decision: determineDecision(team.generalInfo.category, index + 1)
+          };
+        }
+        return team;
+      });
+    };
+    
+    // Déterminer la décision en fonction du classement et de la catégorie
+    const determineDecision = (category: TeamCategory, rank: number): "Sélectionné" | "Non retenu" | undefined => {
+      if (category === 'Secondaire' && rank <= settings.secondaryTeamSelectionCount) {
+        return "Sélectionné";
+      }
+      if (category === 'Supérieur' && rank <= settings.higherTeamSelectionCount) {
+        return "Sélectionné";
+      }
+      return rank ? "Non retenu" : undefined;
+    };
+    
+    // Mettre à jour les classements
+    const updatedSecondaryTeams = updateCategoryRankings(secondaryTeams);
+    const updatedHigherTeams = updateCategoryRankings(higherTeams);
+    
     // Mettre à jour l'état avec les équipes classées
-    setTeams(rankedTeams);
+    const updatedTeams = [...updatedSecondaryTeams, ...updatedHigherTeams];
+    
+    // Mettre à jour l'état et sauvegarder dans le localStorage
+    setTeams(updatedTeams);
+    
+    // Sauvegarder les changements dans le localStorage
+    updatedTeams.forEach(team => {
+      if (team.interviewRank !== undefined) {
+        updateRegistration(team.id!, {
+          interviewRank: team.interviewRank,
+          decision: team.decision
+        });
+      }
+    });
   };
 
   // Catégoriser le nombre d'équipes
@@ -215,15 +283,30 @@ const AdminDashboard = () => {
           </TabsList>
           
           <TabsContent value="all" className="space-y-4">
-            <TeamTrackingTable teams={teams} onTeamUpdate={handleTeamUpdate} />
+            <TeamTrackingTable 
+              teams={teams} 
+              onTeamUpdate={handleTeamUpdate} 
+              onTeamDelete={handleTeamDelete}
+              onExportTeamPDF={exportTeamPDF}
+            />
           </TabsContent>
           
           <TabsContent value="secondaire" className="space-y-4">
-            <TeamTrackingTable teams={filteredTeamsByCategory.filter(team => team.generalInfo.category === 'Secondaire')} onTeamUpdate={handleTeamUpdate} />
+            <TeamTrackingTable 
+              teams={filteredTeamsByCategory.filter(team => team.generalInfo.category === 'Secondaire')} 
+              onTeamUpdate={handleTeamUpdate} 
+              onTeamDelete={handleTeamDelete}
+              onExportTeamPDF={exportTeamPDF}
+            />
           </TabsContent>
           
           <TabsContent value="superieur" className="space-y-4">
-            <TeamTrackingTable teams={filteredTeamsByCategory.filter(team => team.generalInfo.category === 'Supérieur')} onTeamUpdate={handleTeamUpdate} />
+            <TeamTrackingTable 
+              teams={filteredTeamsByCategory.filter(team => team.generalInfo.category === 'Supérieur')} 
+              onTeamUpdate={handleTeamUpdate}
+              onTeamDelete={handleTeamDelete}
+              onExportTeamPDF={exportTeamPDF}
+            />
           </TabsContent>
           
           <TabsContent value="statut" className="space-y-4">
@@ -245,14 +328,26 @@ const AdminDashboard = () => {
                 <option value="Non retenu">Non retenu</option>
               </select>
             </div>
-            <TeamTrackingTable teams={filteredTeams} onTeamUpdate={handleTeamUpdate} />
+            <TeamTrackingTable 
+              teams={filteredTeams} 
+              onTeamUpdate={handleTeamUpdate}
+              onTeamDelete={handleTeamDelete}
+              onExportTeamPDF={exportTeamPDF}
+            />
           </TabsContent>
         </Tabs>
 
-        <Button variant="secondary" onClick={exportToCSV} className="mt-4 flex items-center gap-2">
-          <Download className="w-4 h-4" />
-          Exporter en CSV
-        </Button>
+        <div className="flex gap-4 mt-4">
+          <Button variant="secondary" onClick={exportToCSV} className="flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            Exporter en CSV
+          </Button>
+          
+          <Button variant="outline" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Exporter toutes les fiches PDF
+          </Button>
+        </div>
       </div>
     </div>
   );
