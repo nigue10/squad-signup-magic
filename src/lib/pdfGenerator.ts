@@ -1,7 +1,7 @@
 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getRegistrationById } from './storage';
+import { getRegistrationById, getAllRegistrations } from './storage';
 import { getSettings } from './settings';
 import { TeamRegistration } from '@/types/igc';
 
@@ -164,6 +164,34 @@ export const generateTeamPDF = async (teamId: string): Promise<void> => {
 /**
  * Génère un PDF avec toutes les équipes
  */
-export const generateAllTeamsPDF = (): void => {
-  // À implémenter si nécessaire pour exporter toutes les équipes dans un seul PDF
+export const generateAllTeamsPDF = async (): Promise<void> => {
+  const teams = getAllRegistrations();
+  if (teams.length === 0) {
+    throw new Error("Aucune équipe trouvée");
+  }
+  
+  // Créer une promesse pour attendre que toutes les générations de PDF soient terminées
+  const promises = teams.map(team => 
+    new Promise<void>((resolve, reject) => {
+      try {
+        if (team.id) {
+          generateTeamPDF(team.id)
+            .then(() => resolve())
+            .catch(err => reject(err));
+        } else {
+          resolve(); // Ignorer les équipes sans ID
+        }
+      } catch (error) {
+        reject(error);
+      }
+    })
+  );
+  
+  try {
+    await Promise.all(promises);
+    console.log(`${teams.length} fiches PDF ont été générées avec succès.`);
+  } catch (error) {
+    console.error("Erreur lors de la génération des fiches PDF:", error);
+    throw error;
+  }
 };

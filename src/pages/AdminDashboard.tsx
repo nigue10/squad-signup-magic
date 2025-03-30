@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,7 @@ import {
 import { TeamRegistration, TeamStatus, TeamCategory } from '@/types/igc';
 import { BarChart, Download, Settings, LogOut, FileText } from 'lucide-react';
 import { getSettings } from '@/lib/settings';
-import { generateTeamPDF } from '@/lib/pdfGenerator';
+import { generateTeamPDF, generateAllTeamsPDF } from '@/lib/pdfGenerator';
 import { toast } from 'sonner';
 
 interface CategorizedCounts {
@@ -76,6 +75,27 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error("Erreur lors de l'exportation PDF:", error);
       toast.error("Erreur lors de l'exportation PDF");
+    }
+  };
+
+  // Exporter toutes les équipes au format PDF
+  const exportAllTeamsPDF = async () => {
+    try {
+      if (teams.length === 0) {
+        toast.error("Aucune équipe à exporter");
+        return;
+      }
+      
+      toast.info("Génération des fiches PDF en cours...", {
+        duration: 3000,
+      });
+      
+      await generateAllTeamsPDF();
+      
+      toast.success(`${teams.length} fiches d'équipes exportées en PDF`);
+    } catch (error) {
+      console.error("Erreur lors de l'exportation des PDF:", error);
+      toast.error("Erreur lors de l'exportation des fiches PDF");
     }
   };
 
@@ -343,7 +363,11 @@ const AdminDashboard = () => {
             Exporter en CSV
           </Button>
           
-          <Button variant="outline" className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={exportAllTeamsPDF}
+          >
             <FileText className="w-4 h-4" />
             Exporter toutes les fiches PDF
           </Button>
