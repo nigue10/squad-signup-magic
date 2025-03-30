@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Table, 
@@ -46,7 +47,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { TeamRegistration, TeamStatus, TeamCategory, TeamDecision } from '@/types/igc';
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from 'sonner';
 import { Check, X, MoreHorizontal, Calendar, Clock, Link2, Edit, Save, FileCheck, Trash, FileText } from 'lucide-react';
 import { getSettings } from '@/lib/settings';
 
@@ -58,7 +59,6 @@ interface TeamTrackingTableProps {
 }
 
 const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF }: TeamTrackingTableProps) => {
-  const { toast } = useToast();
   const [editingTeam, setEditingTeam] = useState<string | null>(null);
   const [tempData, setTempData] = useState<Partial<TeamRegistration>>({});
   const [planningDialog, setPlanningDialog] = useState<string | null>(null);
@@ -132,9 +132,9 @@ const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF 
         
         // Mise à jour automatique du statut en fonction du score QCM
         if (tempData.qcmQualified) {
-          tempData.status = 'Qualifié pour entretien';
+          tempData.status = 'Qualifié pour entretien' as TeamStatus;
         } else {
-          tempData.status = 'Éliminé QCM';
+          tempData.status = 'Éliminé QCM' as TeamStatus;
         }
       }
       
@@ -247,7 +247,7 @@ const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF 
                     </SelectContent>
                   </Select>
                 ) : (
-                  getStatusBadge(team.status)
+                  getStatusBadge(team.status as TeamStatus)
                 )}
               </TableCell>
               <TableCell>
@@ -295,7 +295,7 @@ const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF 
                     </SelectContent>
                   </Select>
                 ) : (
-                  getDecisionBadge(team.decision)
+                  getDecisionBadge(team.decision as TeamDecision)
                 )}
               </TableCell>
               <TableCell>
@@ -446,7 +446,7 @@ const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF 
               if (planningDialog) {
                 // Mettre à jour automatiquement le statut
                 if (tempData.interviewDate && tempData.interviewTime) {
-                  tempData.status = 'Qualifié pour entretien';
+                  tempData.status = 'Qualifié pour entretien' as TeamStatus;
                 }
                 handleSaveTeam(planningDialog);
               }
@@ -530,9 +530,9 @@ const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF 
               if (editScoreDialog) {
                 // Mise à jour automatique du statut si le score d'entretien est défini
                 if (tempData.interviewScore !== undefined) {
-                  tempData.status = 'Entretien réalisé';
+                  tempData.status = 'Entretien réalisé' as TeamStatus;
                 } else if (tempData.qcmScore !== undefined) {
-                  tempData.status = 'QCM soumis';
+                  tempData.status = 'QCM soumis' as TeamStatus;
                 }
                 handleSaveTeam(editScoreDialog);
               }

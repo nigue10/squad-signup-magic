@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -101,30 +102,40 @@ const AdminDashboard = () => {
 
   // Mettre à jour une équipe
   const handleTeamUpdate = (teamId: string, updatedData: Partial<TeamRegistration>) => {
-    updateRegistration(teamId, updatedData);
-    
-    // Rafraîchir la liste des équipes
-    setTeams(prev => 
-      prev.map(team => 
-        team.id === teamId ? { ...team, ...updatedData } : team
-      )
-    );
-    
-    // Mettre à jour les classements si nécessaire
-    if (updatedData.interviewScore !== undefined) {
-      updateTeamRankings();
+    try {
+      updateRegistration(teamId, updatedData);
+      
+      // Rafraîchir la liste des équipes
+      setTeams(prev => 
+        prev.map(team => 
+          team.id === teamId ? { ...team, ...updatedData } : team
+        )
+      );
+      
+      // Mettre à jour les classements si nécessaire
+      if (updatedData.interviewScore !== undefined) {
+        updateTeamRankings();
+      }
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour:", error);
+      toast.error(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     }
   };
 
   // Supprimer une équipe
   const handleTeamDelete = (teamId: string) => {
-    deleteRegistration(teamId);
-    
-    // Mettre à jour la liste des équipes
-    setTeams(prev => prev.filter(team => team.id !== teamId));
-    
-    // Mettre à jour les classements après la suppression
-    updateTeamRankings();
+    try {
+      deleteRegistration(teamId);
+      
+      // Mettre à jour la liste des équipes
+      setTeams(prev => prev.filter(team => team.id !== teamId));
+      
+      // Mettre à jour les classements après la suppression
+      updateTeamRankings();
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      toast.error(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    }
   };
 
   // Mettre à jour le classement des équipes après un entretien
@@ -179,11 +190,15 @@ const AdminDashboard = () => {
     
     // Sauvegarder les changements dans le localStorage
     updatedTeams.forEach(team => {
-      if (team.interviewRank !== undefined) {
-        updateRegistration(team.id!, {
-          interviewRank: team.interviewRank,
-          decision: team.decision
-        });
+      if (team.interviewRank !== undefined && team.id) {
+        try {
+          updateRegistration(team.id, {
+            interviewRank: team.interviewRank,
+            decision: team.decision
+          });
+        } catch (error) {
+          console.error(`Erreur lors de la mise à jour du rang pour l'équipe ${team.id}:`, error);
+        }
       }
     });
   };
@@ -269,7 +284,11 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {teams.filter(t => t.status === 'Entretien réalisé' || t.status === 'Sélectionné' || t.status === 'Non retenu').length}
+                {teams.filter(t => 
+                    t.status === 'Entretien réalisé' || 
+                    t.status === 'Sélectionné' || 
+                    t.status === 'Non retenu'
+                ).length}
               </div>
               <p className="text-xs text-muted-foreground">
                 Sur {teams.filter(t => t.qcmQualified).length} équipes qualifiées
@@ -294,9 +313,13 @@ const AdminDashboard = () => {
         </div>
         
         {/* Filtres et Tableau */}
-        <Tabs defaultValue="all">
+        <Tabs defaultValue="all" onValueChange={(value) => {
+          if (value === 'secondaire' || value === 'superieur') {
+            setFilterCategory(value);
+          }
+        }}>
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-            <TabsTrigger value="all">Toutes les équipes</TabsTrigger>
+            <TabsTrigger value="all" onClick={() => setFilterCategory('all')}>Toutes les équipes</TabsTrigger>
             <TabsTrigger value="secondaire">Secondaire</TabsTrigger>
             <TabsTrigger value="superieur">Supérieur</TabsTrigger>
             <TabsTrigger value="statut">Par statut</TabsTrigger>

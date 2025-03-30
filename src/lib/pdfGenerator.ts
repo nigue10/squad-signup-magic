@@ -188,6 +188,7 @@ export const generateTeamPDF = async (teamId: string): Promise<void> => {
       member.email || "-"
     ]);
     
+    // Fix: Adjust column widths to prevent the table from overflowing
     autoTable(doc, {
       startY: yPos,
       head: tableHeaders,
@@ -195,22 +196,23 @@ export const generateTeamPDF = async (teamId: string): Promise<void> => {
       headStyles: { 
         fillColor: [0, 51, 102], 
         textColor: [255, 255, 255],
-        fontSize: 8
+        fontSize: 7 // Reduced font size to fit on page
       },
       bodyStyles: {
-        fontSize: 8
+        fontSize: 7 // Reduced font size to fit on page
       },
       columnStyles: {
-        0: { cellWidth: 30 }, // Nom & Prénoms
-        1: { cellWidth: 10 }, // Sexe
-        2: { cellWidth: 20 }, // Date de naissance
-        3: { cellWidth: 20 }, // Classe / Niveau
-        4: { cellWidth: 30 }, // Établissement
-        5: { cellWidth: 15 }, // Ville
-        6: { cellWidth: 15 }, // Commune
-        7: { cellWidth: 20 }, // Téléphone
-        8: { cellWidth: 30 }  // Email
+        0: { cellWidth: 25 }, // Nom & Prénoms
+        1: { cellWidth: 8 }, // Sexe
+        2: { cellWidth: 16 }, // Date de naissance
+        3: { cellWidth: 16 }, // Classe / Niveau
+        4: { cellWidth: 25 }, // Établissement
+        5: { cellWidth: 12 }, // Ville
+        6: { cellWidth: 12 }, // Commune
+        7: { cellWidth: 18 }, // Téléphone
+        8: { cellWidth: 25 }  // Email
       },
+      margin: { left: 10, right: 10 }, // Reduce margins to have more space
       alternateRowStyles: { fillColor: [240, 240, 245] }
     });
     

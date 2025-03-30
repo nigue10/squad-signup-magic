@@ -1,3 +1,4 @@
+
 import { TeamRegistration, TeamStatus, TeamDecision } from "@/types/igc";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -118,7 +119,7 @@ export const updateRegistration = (id: string, updatedData: Partial<TeamRegistra
       
       // Validation du statut selon les règles d'étapes
       if (updatedData.status) {
-        validateStatusTransition(registrations[index].status, updatedData.status, registrations[index]);
+        validateStatusTransition(registrations[index].status as TeamStatus, updatedData.status as TeamStatus, registrations[index]);
       }
       
       // Validation des scores
