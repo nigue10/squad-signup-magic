@@ -108,16 +108,16 @@ export const generateTeamPDF = async (teamId: string): Promise<void> => {
     
     const memberRows = team.members.map((member, index) => [
       `${index + 1}`,
-      member.firstName,
-      member.lastName,
-      member.email,
+      member.name,
+      member.gender,
+      member.email || '-',
       member.phone || '-',
-      member.role || '-'
+      member.level || '-'
     ]);
     
     autoTable(doc, {
       startY: currentY + 5,
-      head: [['#', 'Prénom', 'Nom', 'Email', 'Téléphone', 'Rôle']],
+      head: [['#', 'Nom', 'Genre', 'Email', 'Téléphone', 'Niveau']],
       body: memberRows,
       headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255] },
       alternateRowStyles: { fillColor: [240, 240, 245] }
