@@ -25,14 +25,58 @@ export const getAllRegistrations = (): TeamRegistration[] => {
   }
 };
 
+// Fonction pour valider les données avant sauvegarde
+const validateRegistration = (registration: TeamRegistration): string[] => {
+  const errors: string[] = [];
+  
+  // Vérification du nom d'équipe (pas de caractères spéciaux)
+  if (!/^[a-zA-Z0-9\s\-_àáâäãåąćęèéêëìíîïłńòóôöõøùúûüÿýżźñçšžÀÁÂÄÃÅĄĆĘÈÉÊËÌÍÎÏŁŃÒÓÔÖÕØÙÚÛÜŸÝŻŹÑßÇŠŽ.']+$/.test(registration.generalInfo.name)) {
+    errors.push("Le nom d'équipe contient des caractères non autorisés");
+  }
+  
+  // Vérification des emails
+  if (registration.generalInfo.pedagogicalReferentEmail && 
+      !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(registration.generalInfo.pedagogicalReferentEmail)) {
+    errors.push("Le format de l'email du référent pédagogique est invalide");
+  }
+  
+  // Vérification des numéros de téléphone (format international)
+  if (registration.generalInfo.pedagogicalReferentPhone && 
+      !/^\+?[0-9\s]{8,15}$/.test(registration.generalInfo.pedagogicalReferentPhone.replace(/[\s\-\(\)]/g, ''))) {
+    errors.push("Le format du numéro de téléphone du référent pédagogique est invalide");
+  }
+  
+  // Vérification de la catégorie
+  if (!['Secondaire', 'Supérieur'].includes(registration.generalInfo.category)) {
+    errors.push("La catégorie doit être 'Secondaire' ou 'Supérieur'");
+  }
+  
+  return errors;
+};
+
 // Fonction pour sauvegarder une nouvelle inscription
 export const saveRegistration = (registration: TeamRegistration): string => {
   initializeStorage();
   try {
+    // Validation des données
+    const validationErrors = validateRegistration(registration);
+    if (validationErrors.length > 0) {
+      console.error("Erreurs de validation:", validationErrors);
+      throw new Error(`Validation échouée: ${validationErrors.join(', ')}`);
+    }
+    
     const registrations = getAllRegistrations();
     const id = uuidv4();
     const createdAt = new Date().toISOString();
-    const newRegistration = { ...registration, id, createdAt };
+    
+    // Statut initial
+    const newRegistration = { 
+      ...registration, 
+      id, 
+      createdAt,
+      status: 'Inscrit' // Statut initial défini à "Inscrit"
+    };
+    
     registrations.push(newRegistration);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(registrations));
     console.log("Nouvelle inscription sauvegardée avec l'ID:", id);
@@ -43,17 +87,58 @@ export const saveRegistration = (registration: TeamRegistration): string => {
   }
 };
 
-// Mettre à jour une inscription existante
+// Mettre à jour une inscription existante avec validation
 export const updateRegistration = (id: string, updatedData: Partial<TeamRegistration>): void => {
   try {
     const registrations = getAllRegistrations();
     const index = registrations.findIndex(registration => registration.id === id);
     
     if (index !== -1) {
+      // Validation des modifications si nécessaire
+      if (updatedData.generalInfo && (
+          updatedData.generalInfo.name || 
+          updatedData.generalInfo.pedagogicalReferentEmail || 
+          updatedData.generalInfo.pedagogicalReferentPhone ||
+          updatedData.generalInfo.category
+      )) {
+        const mergedRegistration = {
+          ...registrations[index],
+          ...updatedData,
+          generalInfo: {
+            ...registrations[index].generalInfo,
+            ...(updatedData.generalInfo || {})
+          }
+        };
+        
+        const validationErrors = validateRegistration(mergedRegistration);
+        if (validationErrors.length > 0) {
+          console.error("Erreurs de validation lors de la mise à jour:", validationErrors);
+          throw new Error(`Validation échouée: ${validationErrors.join(', ')}`);
+        }
+      }
+      
+      // Validation du statut selon les règles d'étapes
+      if (updatedData.status) {
+        validateStatusTransition(registrations[index].status, updatedData.status, registrations[index]);
+      }
+      
+      // Validation des scores
+      if (updatedData.qcmScore !== undefined && (updatedData.qcmScore < 0 || updatedData.qcmScore > 100)) {
+        throw new Error("Le score QCM doit être entre 0 et 100");
+      }
+      
+      if (updatedData.interviewScore !== undefined && (updatedData.interviewScore < 0 || updatedData.interviewScore > 10)) {
+        throw new Error("Le score d'entretien doit être entre 0 et 10");
+      }
+      
       // Merge les données existantes avec les mises à jour
       registrations[index] = { 
         ...registrations[index], 
-        ...updatedData 
+        ...updatedData,
+        generalInfo: {
+          ...registrations[index].generalInfo,
+          ...(updatedData.generalInfo || {})
+        }
       };
       
       localStorage.setItem(STORAGE_KEY, JSON.stringify(registrations));
@@ -63,7 +148,57 @@ export const updateRegistration = (id: string, updatedData: Partial<TeamRegistra
     }
   } catch (error) {
     console.error("Erreur lors de la mise à jour de l'inscription:", error);
-    throw new Error("Impossible de mettre à jour l'inscription");
+    throw new Error("Impossible de mettre à jour l'inscription: " + (error instanceof Error ? error.message : 'Erreur inconnue'));
+  }
+};
+
+// Fonction pour valider la transition d'un statut à un autre
+const validateStatusTransition = (
+  currentStatus: string | undefined, 
+  newStatus: string,
+  registration: TeamRegistration
+): void => {
+  // Définir l'ordre des statuts
+  const statusOrder = [
+    'Inscrit',
+    'QCM soumis',
+    'Éliminé QCM',
+    'Qualifié pour entretien',
+    'Entretien réalisé',
+    'Sélectionné',
+    'Non retenu'
+  ];
+  
+  // Si le statut actuel n'est pas défini, n'importe quel statut est accepté
+  if (!currentStatus) return;
+  
+  // Vérifier que le nouveau statut est valide
+  if (!statusOrder.includes(newStatus)) {
+    throw new Error(`Statut invalide: ${newStatus}`);
+  }
+  
+  // Vérifier les conditions pour passer à "Qualifié pour entretien"
+  if (newStatus === 'Qualifié pour entretien') {
+    // Un score QCM est requis
+    if (registration.qcmScore === undefined) {
+      throw new Error("Un score QCM est requis pour qualifier une équipe pour l'entretien");
+    }
+    
+    // Vérifier les seuils QCM
+    const threshold = registration.generalInfo.category === 'Secondaire' ? 60 : 70;
+    if (registration.qcmScore < threshold) {
+      throw new Error(`Le score QCM (${registration.qcmScore}) est inférieur au seuil requis (${threshold})`);
+    }
+  }
+  
+  // Vérifier les conditions pour passer à "Entretien réalisé"
+  if (newStatus === 'Entretien réalisé' && registration.interviewScore === undefined) {
+    throw new Error("Un score d'entretien est requis pour marquer l'entretien comme réalisé");
+  }
+  
+  // Le statut final ne peut être que "Sélectionné" ou "Non retenu"
+  if (currentStatus === 'Sélectionné' || currentStatus === 'Non retenu') {
+    throw new Error(`Impossible de changer le statut ${currentStatus}`);
   }
 };
 
