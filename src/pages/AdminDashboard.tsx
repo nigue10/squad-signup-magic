@@ -58,22 +58,27 @@ const AdminDashboard = () => {
     : filteredTeamsByCategory.filter(team => team.status === filterStatus);
 
   // Exporter les données au format CSV
-  const exportToCSV = () => {
-    const csvData = exportAllRegistrationsToCSV();
-    if (!csvData) {
-      toast.error("Aucune donnée à exporter");
-      return;
+  const exportToCSV = async () => {
+    try {
+      const csvData = await exportAllRegistrationsToCSV();
+      if (!csvData) {
+        toast.error("Aucune donnée à exporter");
+        return;
+      }
+      
+      const blob = new Blob([csvData], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.setAttribute('href', url);
+      a.setAttribute('download', `igc_equipes_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success("Données exportées avec succès");
+    } catch (error) {
+      console.error("Erreur lors de l'exportation CSV:", error);
+      toast.error("Erreur lors de l'exportation des données");
     }
-    
-    const blob = new Blob([csvData], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.setAttribute('href', url);
-    a.setAttribute('download', `igc_equipes_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast.success("Données exportées avec succès");
   };
 
   // Exporter une équipe spécifique au format PDF
@@ -331,7 +336,6 @@ const AdminDashboard = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-igc-navy"></div>
           </div>
         ) : (
-          // ... keep existing code (tabs and table components)
           <Tabs defaultValue="all" onValueChange={(value) => {
             if (value === 'secondaire' || value === 'superieur') {
               setFilterCategory(value);
