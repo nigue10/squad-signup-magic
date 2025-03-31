@@ -9,7 +9,87 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      teams: {
+        Row: {
+          category: string
+          city: string | null
+          comments: string | null
+          commune: string | null
+          created_at: string
+          decision: string | null
+          id: string
+          institution: string
+          interview_date: string | null
+          interview_link: string | null
+          interview_notes: string | null
+          interview_rank: number | null
+          interview_score: number | null
+          interview_time: string | null
+          members: Json
+          name: string
+          pedagogical_referent: Json | null
+          qcm_qualified: boolean | null
+          qcm_score: number | null
+          school: string | null
+          skills: Json
+          status: string
+          team_leader: string
+          vision: Json
+        }
+        Insert: {
+          category: string
+          city?: string | null
+          comments?: string | null
+          commune?: string | null
+          created_at?: string
+          decision?: string | null
+          id?: string
+          institution: string
+          interview_date?: string | null
+          interview_link?: string | null
+          interview_notes?: string | null
+          interview_rank?: number | null
+          interview_score?: number | null
+          interview_time?: string | null
+          members: Json
+          name: string
+          pedagogical_referent?: Json | null
+          qcm_qualified?: boolean | null
+          qcm_score?: number | null
+          school?: string | null
+          skills: Json
+          status?: string
+          team_leader: string
+          vision: Json
+        }
+        Update: {
+          category?: string
+          city?: string | null
+          comments?: string | null
+          commune?: string | null
+          created_at?: string
+          decision?: string | null
+          id?: string
+          institution?: string
+          interview_date?: string | null
+          interview_link?: string | null
+          interview_notes?: string | null
+          interview_rank?: number | null
+          interview_score?: number | null
+          interview_time?: string | null
+          members?: Json
+          name?: string
+          pedagogical_referent?: Json | null
+          qcm_qualified?: boolean | null
+          qcm_score?: number | null
+          school?: string | null
+          skills?: Json
+          status?: string
+          team_leader?: string
+          vision?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
