@@ -14,7 +14,18 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 // Pour déboguer les requêtes Supabase
 const debugSupabase = false; // Mettre à true pour activer les logs
 if (debugSupabase) {
-  supabase.on('error', (error) => {
-    console.error('Supabase error:', error);
-  });
+  // Using console.log for debugging instead of event listeners
+  console.log('Supabase client initialized with URL:', SUPABASE_URL);
+  
+  // We can attach event listeners in a different way or use try/catch for error handling
+  const originalRequest = supabase.auth.getSession;
+  supabase.auth.getSession = async () => {
+    try {
+      const result = await originalRequest.call(supabase.auth);
+      return result;
+    } catch (error) {
+      console.error('Supabase auth error:', error);
+      throw error;
+    }
+  };
 }
