@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import LogoHeader from '@/components/LogoHeader';
 import { Eye, EyeOff, Lock, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { toast } from "sonner";
 
 // Pour une démonstration, le nom d'utilisateur et mot de passe sont codés en dur
 // Dans une vraie application, ces informations seraient stockées de manière sécurisée côté serveur
@@ -21,7 +21,6 @@ const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 10;
 
 const AdminLogin = () => {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -99,8 +98,7 @@ const AdminLogin = () => {
         localStorage.setItem('admin_authenticated', 'true');
         
         // Notification de succès
-        toast({
-          title: "Connexion réussie",
+        toast.success("Connexion réussie", {
           description: "Bienvenue dans l'espace administrateur IGC",
         });
         
@@ -124,10 +122,8 @@ const AdminLogin = () => {
           setErrorMessage(`Nom d'utilisateur ou mot de passe incorrect. Tentatives restantes: ${MAX_LOGIN_ATTEMPTS - newAttempts}`);
         }
         
-        toast({
-          title: "Échec de connexion",
+        toast.error("Échec de connexion", {
           description: "Nom d'utilisateur ou mot de passe incorrect.",
-          variant: "destructive",
         });
         setIsLoading(false);
       }
@@ -148,14 +144,18 @@ const AdminLogin = () => {
   const isLocked = lockoutUntil && lockoutUntil > new Date();
 
   return (
-    <div className="min-h-screen bg-igc-gray flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
+    <div className="min-h-screen bg-gradient-to-br from-igc-navy/5 to-igc-purple/5 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md border-none shadow-lg bg-white rounded-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
+        <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <LogoHeader />
+            <img 
+              src="/lovable-uploads/f2bba9e8-108e-4607-9b68-2192cbc4963a.png" 
+              alt="Logo robot IGC" 
+              className="w-16 h-16 object-contain animate-bounce" 
+            />
           </div>
-          <CardTitle className="text-2xl text-center">Administration IGC</CardTitle>
-          <CardDescription className="text-center">
+          <CardTitle className="text-2xl font-medium text-igc-navy">Administration IGC</CardTitle>
+          <CardDescription>
             Connectez-vous pour accéder au tableau de bord
           </CardDescription>
         </CardHeader>
@@ -197,6 +197,7 @@ const AdminLogin = () => {
                   required
                   autoComplete="username"
                   disabled={isLoading}
+                  className="rounded-full border-igc-navy/20 focus:border-igc-magenta focus:ring-igc-magenta"
                 />
               </div>
               <div className="space-y-2">
@@ -210,6 +211,7 @@ const AdminLogin = () => {
                     required
                     autoComplete="current-password"
                     disabled={isLoading}
+                    className="rounded-full border-igc-navy/20 focus:border-igc-magenta focus:ring-igc-magenta"
                   />
                   <Button
                     type="button"
@@ -229,7 +231,7 @@ const AdminLogin = () => {
               </div>
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full bg-igc-navy hover:bg-igc-magenta"
                 disabled={isLoading}
               >
                 {isLoading ? (

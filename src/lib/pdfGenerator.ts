@@ -6,367 +6,394 @@ import { getSettings } from './settings';
 import { TeamRegistration } from '@/types/igc';
 
 /**
+ * Calcule les points pour une équipe spécifique
+ * @param team Équipe
+ */
+const calculatePoints = (team: TeamRegistration): number => {
+  let points = 0;
+  
+  // Points from QCM score (if available)
+  if (team.qcmScore) {
+    points += team.qcmScore;
+  }
+  
+  // Points from interview score (if available, scaled to match QCM scale)
+  if (team.interviewScore !== undefined && team.interviewScore !== null) {
+    // Interview score is on scale of 0-10, multiply by 10 to match QCM scale
+    points += team.interviewScore * 10;
+  }
+  
+  // Bonus points for team composition diversity
+  if (team.members) {
+    const hasMaleMembers = team.members.some(member => member.gender === 'M');
+    const hasFemaleMembers = team.members.some(member => member.gender === 'F');
+    
+    // Bonus for gender diversity
+    if (hasMaleMembers && hasFemaleMembers) {
+      points += 5;
+    }
+  }
+  
+  // Bonus points for skills diversity
+  if (team.skills) {
+    let skillCount = 0;
+    if (team.skills.arduino) skillCount++;
+    if (team.skills.sensors) skillCount++;
+    if (team.skills.design3d) skillCount++;
+    if (team.skills.basicElectronics) skillCount++;
+    if (team.skills.programming) skillCount++;
+    if (team.skills.robotDesign) skillCount++;
+    if (team.skills.remoteControl) skillCount++;
+    if (team.skills.teamwork) skillCount++;
+    if (team.skills.other) skillCount++;
+    
+    // Add bonus points based on skill diversity
+    points += skillCount * 2;
+  }
+  
+  return Math.round(points);
+};
+
+/**
  * Génère un PDF pour une équipe spécifique
  * @param teamId ID de l'équipe
  */
 export const generateTeamPDF = async (teamId: string): Promise<void> => {
-  // Récupérer les données de l'équipe
-  const team = getRegistrationById(teamId);
-  if (!team) {
-    throw new Error(`Équipe avec l'ID ${teamId} non trouvée`);
-  }
-
-  const settings = getSettings();
-  
-  // Créer un nouveau document PDF
-  const doc = new jsPDF();
-  
-  // Ajouter les logos
   try {
-    const leftLogoWidth = 20;
-    const rightLogoWidth = 30;
+    // Récupérer les données de l'équipe
+    const team = getRegistrationById(teamId);
+    if (!team) {
+      throw new Error(`Équipe avec l'ID ${teamId} non trouvée`);
+    }
+
+    const settings = getSettings();
     
-    // Logo gauche (robot IGC)
-    doc.addImage("/lovable-uploads/f2bba9e8-108e-4607-9b68-2192cbc4963a.png", "PNG", 15, 10, leftLogoWidth, leftLogoWidth);
+    // Calculer les points
+    const points = calculatePoints(team);
     
-    // Logo droit (texte IGC)
-    doc.addImage("/lovable-uploads/034e2fe6-1491-4af1-a834-7b32d6879658.png", "PNG", doc.internal.pageSize.width - rightLogoWidth - 15, 10, rightLogoWidth, 15);
+    // Créer un nouveau document PDF
+    const doc = new jsPDF();
+    
+    // Ajouter un fond avec gradient
+    doc.setFillColor(230, 230, 245); // Light purple/blue background
+    doc.rect(0, 0, doc.internal.pageSize.width, doc.internal.pageSize.height, 'F');
+    
+    // Ajouter un overlay décoratif
+    doc.setFillColor(27, 20, 100, 0.03); // igc-navy with low opacity
+    for (let i = 0; i < 10; i++) {
+      const x = Math.random() * doc.internal.pageSize.width;
+      const y = Math.random() * doc.internal.pageSize.height;
+      const size = 20 + Math.random() * 50;
+      doc.circle(x, y, size, 'F');
+    }
+    
+    // Ajouter les logos
+    try {
+      const leftLogoWidth = 25;
+      const rightLogoWidth = 35;
+      
+      // Logo gauche (robot IGC)
+      doc.addImage("/lovable-uploads/f2bba9e8-108e-4607-9b68-2192cbc4963a.png", "PNG", 15, 10, leftLogoWidth, leftLogoWidth);
+      
+      // Logo droit (texte IGC)
+      doc.addImage("/lovable-uploads/034e2fe6-1491-4af1-a834-7b32d6879658.png", "PNG", doc.internal.pageSize.width - rightLogoWidth - 15, 10, rightLogoWidth, 17);
+    } catch (error) {
+      console.error("Erreur lors de l'ajout des logos:", error);
+    }
+    
+    // Ajouter un titre
+    doc.setFontSize(14);
+    doc.setTextColor(120, 120, 120);
+    doc.text("Ivorian Genius Contest " + settings.applicationYear, 105, 20, { align: 'center' });
+    
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(27, 20, 100); // Couleur IGC Navy
+    doc.text("FICHE D'ÉQUIPE - IGC " + settings.applicationYear, 105, 35, { align: 'center' });
+    doc.setFont("helvetica", "normal");
+    
+    // Partie 1: Informations Générales sur l'Équipe
+    let yPos = 50;
+    
+    doc.setFontSize(16);
+    doc.setTextColor(27, 20, 100);
+    doc.setFillColor(27, 20, 100);
+    doc.rect(15, yPos - 5, 10, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.text("1", 20, yPos);
+    doc.setFontSize(16);
+    doc.setTextColor(27, 20, 100);
+    doc.text("Informations Générales", 30, yPos);
+    
+    yPos += 15;
+    
+    // Cadre d'information principale
+    doc.setDrawColor(27, 20, 100);
+    doc.setFillColor(255, 255, 255, 0.7);
+    doc.roundedRect(15, yPos - 5, 180, 60, 5, 5, 'FD');
+    
+    // Nom de l'équipe
+    doc.setFontSize(14);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Équipe:", 25, yPos + 5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(team.generalInfo.name, 70, yPos + 5);
+    
+    // Points
+    doc.setFontSize(14);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Points:", 135, yPos + 5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(points.toString(), 175, yPos + 5);
+    
+    yPos += 15;
+    
+    // Catégorie
+    doc.setFontSize(12);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Catégorie:", 25, yPos + 5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(team.generalInfo.category, 70, yPos + 5);
+    
+    // Statut
+    doc.setFontSize(12);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Statut:", 135, yPos + 5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(team.status || "Non défini", 175, yPos + 5);
+    
+    yPos += 15;
+    
+    // Institution
+    doc.setFontSize(12);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Institution:", 25, yPos + 5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(team.generalInfo.institution || "-", 70, yPos + 5);
+    
+    yPos += 15;
+    
+    // Ville
+    doc.setFontSize(12);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Ville / Commune:", 25, yPos + 5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(
+      `${team.generalInfo.city || "-"}${team.generalInfo.commune ? ` / ${team.generalInfo.commune}` : ''}`,
+      70, 
+      yPos + 5
+    );
+    
+    yPos += 30;
+    
+    // Partie 2: Scores et Évaluation
+    doc.setFontSize(16);
+    doc.setTextColor(27, 20, 100);
+    doc.setFillColor(27, 20, 100);
+    doc.rect(15, yPos - 5, 10, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.text("2", 20, yPos);
+    doc.setFontSize(16);
+    doc.setTextColor(27, 20, 100);
+    doc.text("Scores et Évaluation", 30, yPos);
+    
+    yPos += 15;
+    
+    // Cadre des scores
+    doc.setDrawColor(27, 20, 100);
+    doc.setFillColor(255, 255, 255, 0.7);
+    doc.roundedRect(15, yPos - 5, 180, 50, 5, 5, 'FD');
+    
+    // Score QCM
+    doc.setFontSize(12);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Score QCM:", 25, yPos + 5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(team.qcmScore !== undefined ? `${team.qcmScore}/100` : "Non disponible", 70, yPos + 5);
+    
+    // Qualification QCM
+    doc.setFontSize(12);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Qualification QCM:", 25, yPos + 20);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(team.qcmQualified ? "Oui" : "Non", 70, yPos + 20);
+    
+    // Score entretien
+    doc.setFontSize(12);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Score entretien:", 25, yPos + 35);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(
+      team.interviewScore !== undefined && team.interviewScore !== null
+        ? `${team.interviewScore.toFixed(1)}/10`
+        : "Non disponible", 
+      70, 
+      yPos + 35
+    );
+    
+    // Classement
+    doc.setFontSize(12);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Classement:", 135, yPos + 5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(team.interviewRank ? `#${team.interviewRank}` : "Non classé", 175, yPos + 5);
+    
+    // Décision
+    doc.setFontSize(12);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Décision finale:", 135, yPos + 20);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(team.decision || "En attente", 175, yPos + 20);
+    
+    // Points totaux
+    doc.setFontSize(12);
+    doc.setTextColor(27, 20, 100);
+    doc.setFont("helvetica", "bold");
+    doc.text("Points totaux:", 135, yPos + 35);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(points.toString(), 175, yPos + 35);
+    
+    yPos += 60;
+    
+    // Partie 3: Composition de l'équipe
+    doc.setFontSize(16);
+    doc.setTextColor(27, 20, 100);
+    doc.setFillColor(27, 20, 100);
+    doc.rect(15, yPos - 5, 10, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.text("3", 20, yPos);
+    doc.setFontSize(16);
+    doc.setTextColor(27, 20, 100);
+    doc.text("Composition de l'Équipe", 30, yPos);
+    
+    yPos += 15;
+    
+    // Tableau des membres
+    if (team.members && team.members.length > 0) {
+      const tableHeaders = [
+        ["Nom & Prénoms", "Sexe", "Date de naissance", "Classe/Niveau", "École", "Téléphone", "Email"]
+      ];
+      
+      const tableRows = team.members.map(member => [
+        member.name,
+        member.gender,
+        member.birthDate || "-",
+        member.level || "-",
+        member.school || "-",
+        member.phone || "-",
+        member.email || "-"
+      ]);
+      
+      autoTable(doc, {
+        startY: yPos,
+        head: tableHeaders,
+        body: tableRows,
+        headStyles: { 
+          fillColor: [27, 20, 100], 
+          textColor: [255, 255, 255],
+          fontSize: 9,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        bodyStyles: {
+          fontSize: 8,
+          textColor: [0, 0, 0]
+        },
+        alternateRowStyles: { 
+          fillColor: [240, 240, 245] 
+        },
+        margin: { left: 15, right: 15 },
+        styles: {
+          cellPadding: 2,
+          valign: 'middle',
+          overflow: 'linebreak',
+          lineWidth: 0.1,
+          lineColor: [27, 20, 100]
+        },
+        columnStyles: {
+          0: { cellWidth: 35 },
+          1: { cellWidth: 10, halign: 'center' },
+          2: { cellWidth: 25, halign: 'center' },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 30 },
+          5: { cellWidth: 25, halign: 'center' },
+          6: { cellWidth: 35 }
+        },
+        theme: 'grid'
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+    } else {
+      doc.setFontSize(12);
+      doc.setTextColor(100, 100, 100);
+      doc.text("Aucun membre d'équipe enregistré", 105, yPos + 10, { align: 'center' });
+      yPos += 25;
+    }
+    
+    // Si on dépasse une page, passer à la page suivante
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+      
+      // Ajout d'un fond léger sur la nouvelle page
+      doc.setFillColor(240, 240, 245);
+      doc.rect(0, 0, doc.internal.pageSize.width, doc.internal.pageSize.height, 'F');
+    }
+    
+    // Ajouter un pied de page sur toutes les pages
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(
+        `Ivorian Genius Contest ${settings.applicationYear} - Fiche d'équipe ${team.generalInfo.name}`,
+        105, 
+        doc.internal.pageSize.height - 10, 
+        { align: 'center' }
+      );
+      
+      // Numéro de page
+      doc.text(
+        `Page ${i} / ${pageCount}`,
+        doc.internal.pageSize.width - 20, 
+        doc.internal.pageSize.height - 10
+      );
+    }
+    
+    // Télécharger le PDF
+    doc.save(`IGC_Fiche_${team.generalInfo.name.replace(/\s+/g, '_')}.pdf`);
+    return Promise.resolve();
   } catch (error) {
-    console.error("Erreur lors de l'ajout des logos:", error);
+    console.error("Erreur lors de la génération du PDF:", error);
+    return Promise.reject(error);
   }
-  
-  // Ajouter un titre
-  doc.setFontSize(12);
-  doc.setTextColor(120, 120, 120);
-  doc.text("Ivorian Genius Contest " + settings.applicationYear, 105, 20, { align: 'center' });
-  
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(0, 51, 102); // Couleur IGC Navy
-  doc.text("FICHE D'IDENTIFICATION DE L'ÉQUIPE - IGC " + settings.applicationYear, 105, 35, { align: 'center' });
-  doc.setFont("helvetica", "normal");
-  
-  // Partie 1: Informations Générales sur l'Équipe
-  let yPos = 50;
-  
-  doc.setFontSize(14);
-  doc.setTextColor(0, 51, 102);
-  doc.setFillColor(240, 240, 245);
-  doc.rect(15, yPos - 5, 8, 8, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.text("📋", 17, yPos);
-  doc.setTextColor(0, 51, 102);
-  doc.text("Informations Générales sur l'Équipe", 30, yPos);
-  
-  yPos += 10;
-  
-  // Date
-  doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
-  doc.text("Date :", 15, yPos);
-  doc.text(team.generalInfo.date || (new Date().toLocaleDateString()), 50, yPos);
-  
-  yPos += 8;
-  
-  // Nom de l'équipe
-  doc.text("Nom de l'équipe * :", 15, yPos);
-  doc.setFont("helvetica", "bold");
-  doc.text(team.generalInfo.name, 50, yPos);
-  doc.setFont("helvetica", "normal");
-  
-  yPos += 8;
-  
-  // Catégorie
-  doc.text("Catégorie * :", 15, yPos);
-  doc.text(team.generalInfo.category, 50, yPos);
-  
-  yPos += 8;
-  
-  // Ville
-  doc.text("Ville * :", 15, yPos);
-  doc.text(team.generalInfo.city, 50, yPos);
-  
-  yPos += 8;
-  
-  // Commune
-  doc.text("Commune * :", 15, yPos);
-  doc.text(team.generalInfo.commune || "-", 50, yPos);
-  
-  yPos += 8;
-  
-  // Établissement
-  doc.text("Établissement ou structure de rattachement * :", 15, yPos);
-  doc.text(team.generalInfo.institution, 120, yPos);
-  
-  yPos += 8;
-  
-  // Référent pédagogique (seulement pour la catégorie Secondaire)
-  if (team.generalInfo.category === "Secondaire") {
-    doc.text("Nom du référent pédagogique (obligatoire pour le secondaire) :", 15, yPos);
-    doc.text(team.generalInfo.pedagogicalReferentName || "-", 120, yPos);
-    
-    yPos += 8;
-    
-    doc.text("Téléphone référent pédagogique :", 15, yPos);
-    doc.text(team.generalInfo.pedagogicalReferentPhone || "-", 120, yPos);
-    
-    yPos += 8;
-    
-    doc.text("Email référent pédagogique :", 15, yPos);
-    doc.text(team.generalInfo.pedagogicalReferentEmail || "-", 120, yPos);
-    
-    yPos += 8;
-  }
-  
-  // Chef d'équipe
-  doc.text("Nom du chef d'équipe :", 15, yPos);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(148, 0, 211); // Couleur IGC Magenta/Purple
-  doc.text(team.generalInfo.teamLeaderName || (team.members && team.members.length > 0 ? team.members[0].name : "-"), 80, yPos);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(0, 0, 0);
-  
-  yPos += 25;
-  
-  // Partie 2: Composition de l'Équipe
-  doc.setFontSize(14);
-  doc.setTextColor(0, 51, 102);
-  doc.setFillColor(240, 240, 245);
-  doc.rect(15, yPos - 5, 8, 8, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.text("👥", 17, yPos);
-  doc.setTextColor(0, 51, 102);
-  doc.text("Composition de l'Équipe", 30, yPos);
-  
-  yPos += 10;
-  
-  // Instruction chef d'équipe
-  doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
-  doc.text("👉 Le chef d'équipe doit figurer dans la liste ci-dessous et y renseigner ses coordonnées.", 15, yPos);
-  
-  yPos += 10;
-  
-  // Rappel composition
-  doc.setFillColor(230, 250, 230);
-  doc.rect(15, yPos - 5, 5, 5, "F");
-  doc.setTextColor(0, 150, 0);
-  doc.text("✓", 16, yPos);
-  doc.setTextColor(0, 0, 0);
-  doc.text("Rappel composition :", 25, yPos);
-  
-  yPos += 10;
-  
-  // Liste des règles de composition
-  doc.text("• Secondaire : 6 membres", 25, yPos);
-  yPos += 6;
-  doc.text("• Supérieur : 4 à 6 membres", 25, yPos);
-  yPos += 8;
-  
-  // Note sur les équipes avec filles
-  doc.setFont("helvetica", "italic");
-  doc.text("NB : Les équipes composées de filles sont très encouragées.", 15, yPos);
-  doc.setFont("helvetica", "normal");
-  
-  yPos += 15;
-  
-  // Tableau des membres
-  if (team.members && team.members.length > 0) {
-    const tableHeaders = [
-      ["Nom & Prénoms*", "Sexe*", "Date de naissance*", "Classe / Niveau*", "Établissement*", "Ville*", "Commune*", "Téléphone", "Email"]
-    ];
-    
-    const tableRows = team.members.map(member => [
-      member.name,
-      member.gender,
-      member.birthDate || "-",
-      member.level || "-",
-      member.school || "-",
-      member.city || "-",
-      member.commune || "-",
-      member.phone || "-",
-      member.email || "-"
-    ]);
-    
-    // Fix: Better column width management to prevent table overflow
-    autoTable(doc, {
-      startY: yPos,
-      head: tableHeaders,
-      body: tableRows,
-      headStyles: { 
-        fillColor: [0, 51, 102], 
-        textColor: [255, 255, 255],
-        fontSize: 7 
-      },
-      bodyStyles: {
-        fontSize: 7
-      },
-      columnStyles: {
-        0: { cellWidth: 22 },  // Nom & Prénoms
-        1: { cellWidth: 7 },   // Sexe
-        2: { cellWidth: 15 },  // Date de naissance
-        3: { cellWidth: 15 },  // Classe / Niveau
-        4: { cellWidth: 22 },  // Établissement
-        5: { cellWidth: 11 },  // Ville
-        6: { cellWidth: 11 },  // Commune
-        7: { cellWidth: 15 },  // Téléphone
-        8: { cellWidth: 20 }   // Email
-      },
-      margin: { left: 10, right: 10 },
-      tableWidth: 'auto',
-      alternateRowStyles: { fillColor: [240, 240, 245] }
-    });
-    
-    yPos = (doc as any).lastAutoTable.finalY + 15;
-  } else {
-    yPos += 10;
-  }
-  
-  // Si on dépasse une page, passer à la page suivante
-  if (yPos > 250) {
-    doc.addPage();
-    yPos = 20;
-  }
-  
-  // Partie 3: Compétences & Outils
-  doc.setFontSize(14);
-  doc.setTextColor(0, 51, 102);
-  doc.setFillColor(240, 240, 245);
-  doc.rect(15, yPos - 5, 8, 8, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.text("🛠️", 17, yPos);
-  doc.setTextColor(0, 51, 102);
-  doc.text("Compétences & Outils maîtrisés dans l'équipe (à cocher)", 30, yPos);
-  
-  yPos += 15;
-  
-  // Liste des compétences
-  doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
-  
-  const skills = [
-    { name: "Programmation Arduino", checked: team.skills?.arduino },
-    { name: "Capteurs & actionneurs", checked: team.skills?.sensors },
-    { name: "Design 3D / Impression 3D", checked: team.skills?.design3d },
-    { name: "Électronique de base", checked: team.skills?.basicElectronics },
-    { name: "Programmation Python / C++", checked: team.skills?.programming },
-    { name: "Conception de robot mobile", checked: team.skills?.robotDesign },
-    { name: "Téléguidage / Contrôle Bluetooth", checked: team.skills?.remoteControl },
-    { name: "Travail en équipe / Gestion de projet", checked: team.skills?.teamwork },
-    { name: "Autre(s) :", checked: team.skills?.other, description: team.skills?.otherDescription }
-  ];
-  
-  let colCount = 0;
-  let rowPos = yPos;
-  const colWidth = 90;
-  
-  skills.forEach((skill, index) => {
-    const xPos = 15 + (colCount * colWidth);
-    
-    // Dessiner la checkbox
-    doc.setDrawColor(0);
-    doc.rect(xPos, rowPos - 4, 4, 4, skill.checked ? "F" : "S");
-    
-    // Ajouter le nom de la compétence
-    doc.text(skill.name, xPos + 7, rowPos);
-    
-    // Ajouter la description pour "Autre(s)"
-    if (skill.name === "Autre(s) :" && skill.description) {
-      doc.text(skill.description, xPos + 27, rowPos);
-    }
-    
-    colCount++;
-    if (colCount >= 2 || index === skills.length - 1) {
-      colCount = 0;
-      rowPos += 10;
-    }
-  });
-  
-  yPos = rowPos + 10;
-  
-  // Partie 4: Motivation & Vision
-  doc.setFontSize(14);
-  doc.setTextColor(0, 51, 102);
-  doc.setFillColor(240, 240, 245);
-  doc.rect(15, yPos - 5, 8, 8, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.text("💡", 17, yPos);
-  doc.setTextColor(0, 51, 102);
-  doc.text("Motivation & Vision", 30, yPos);
-  
-  yPos += 15;
-  
-  // Question motivation
-  doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
-  doc.text("Pourquoi souhaitez-vous participer à l'IGC 2025 ? (5 à 8 lignes) * :", 15, yPos);
-  
-  yPos += 10;
-  
-  // Réponse motivation (avec retour à la ligne si nécessaire)
-  if (team.vision?.motivation) {
-    const motivationText = doc.splitTextToSize(team.vision.motivation, 180);
-    doc.text(motivationText, 15, yPos);
-    yPos += 6 * Math.min(motivationText.length, 8); // Max 8 lignes
-  } else {
-    yPos += 20; // Espace vide
-  }
-  
-  yPos += 10;
-  
-  // Question valeurs
-  doc.text("En quoi votre équipe incarne les valeurs de l'IGC ? (Créativité, esprit d'équipe, innovation) * :", 15, yPos);
-  
-  yPos += 10;
-  
-  // Réponse valeurs (avec retour à la ligne si nécessaire)
-  if (team.vision?.values) {
-    const valuesText = doc.splitTextToSize(team.vision.values, 180);
-    doc.text(valuesText, 15, yPos);
-    yPos += 6 * Math.min(valuesText.length, 8); // Max 8 lignes
-  } else {
-    yPos += 20; // Espace vide
-  }
-  
-  yPos += 10;
-  
-  // Niveau de connaissances en robotique
-  doc.text("Niveau de connaissances en robotique de l'équipe * :", 15, yPos);
-  doc.setFont("helvetica", "bold");
-  doc.text(team.vision?.roboticsLevel || "-", 120, yPos);
-  doc.setFont("helvetica", "normal");
-  
-  yPos += 10;
-  
-  // Espace de travail
-  doc.text("L'équipe dispose-t-elle d'un espace de travail ? * :", 15, yPos);
-  doc.setFont("helvetica", "bold");
-  doc.text(team.vision?.hasWorkspace ? "Oui" : "Non", 120, yPos);
-  doc.setFont("helvetica", "normal");
-  
-  // Ajouter un pied de page sur toutes les pages
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text(
-      `Ivorian Genius Contest ${settings.applicationYear} - Fiche d'identification de l'équipe ${team.generalInfo.name}`,
-      105, 
-      doc.internal.pageSize.height - 10, 
-      { align: 'center' }
-    );
-    
-    // Numéro de page
-    doc.text(
-      `Page ${i} / ${pageCount}`,
-      doc.internal.pageSize.width - 20, 
-      doc.internal.pageSize.height - 10
-    );
-  }
-  
-  // Télécharger le PDF
-  doc.save(`IGC_Fiche_${team.generalInfo.name.replace(/\s+/g, '_')}.pdf`);
 };
 
 /**
@@ -403,3 +430,4 @@ export const generateAllTeamsPDF = async (): Promise<void> => {
     throw error;
   }
 };
+

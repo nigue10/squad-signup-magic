@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -8,11 +7,10 @@ import TeamTrackingTable from '@/components/TeamTrackingTable';
 import { 
   getAllRegistrations, 
   updateRegistration, 
-  deleteRegistration,
-  exportAllRegistrationsToCSV
-} from '@/lib/supabaseStorage';
+  deleteRegistration
+} from '@/lib/storage';
 import { TeamRegistration, TeamStatus, TeamCategory } from '@/types/igc';
-import { BarChart, Download, Settings, LogOut, FileText } from 'lucide-react';
+import { BarChart, Download, Settings, LogOut, FileText, RefreshCw } from 'lucide-react';
 import { getSettings } from '@/lib/settings';
 import { generateTeamPDF, generateAllTeamsPDF } from '@/lib/pdfGenerator';
 import { toast } from 'sonner';
@@ -29,25 +27,34 @@ const AdminDashboard = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const settings = getSettings();
-
+  
   useEffect(() => {
-    // Charger les inscriptions depuis Supabase
-    const loadRegistrations = async () => {
-      try {
-        setIsLoading(true);
-        const registrations = await getAllRegistrations();
-        console.log("Inscriptions chargées:", registrations);
-        setTeams(registrations);
-      } catch (error) {
-        console.error("Erreur lors du chargement des inscriptions:", error);
-        toast.error("Erreur lors du chargement des données");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
+    // Check authentication
+    const isLoggedIn = localStorage.getItem('admin_authenticated');
+    if (isLoggedIn !== 'true') {
+      toast.error("Accès non autorisé. Veuillez vous connecter.");
+      navigate('/admin');
+      return;
+    }
+    
+    // Load registrations
     loadRegistrations();
-  }, []);
+  }, [navigate]);
+
+  // Charger les inscriptions depuis le stockage
+  const loadRegistrations = async () => {
+    try {
+      setIsLoading(true);
+      const registrations = await getAllRegistrations();
+      console.log("Inscriptions chargées:", registrations);
+      setTeams(registrations);
+    } catch (error) {
+      console.error("Erreur lors du chargement des inscriptions:", error);
+      toast.error("Erreur lors du chargement des données");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filtrer les équipes par catégorie
   const filteredTeamsByCategory = filterCategory === 'all'
@@ -58,30 +65,6 @@ const AdminDashboard = () => {
   const filteredTeams = filterStatus === 'all'
     ? filteredTeamsByCategory
     : filteredTeamsByCategory.filter(team => team.status === filterStatus);
-
-  // Exporter les données au format CSV
-  const exportToCSV = async () => {
-    try {
-      const csvData = await exportAllRegistrationsToCSV();
-      if (!csvData) {
-        toast.error("Aucune donnée à exporter");
-        return;
-      }
-      
-      const blob = new Blob([csvData], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.setAttribute('href', url);
-      a.setAttribute('download', `igc_equipes_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      toast.success("Données exportées avec succès");
-    } catch (error) {
-      console.error("Erreur lors de l'exportation CSV:", error);
-      toast.error("Erreur lors de l'exportation des données");
-    }
-  };
 
   // Exporter une équipe spécifique au format PDF
   const exportTeamPDF = async (teamId: string) => {
@@ -156,6 +139,12 @@ const AdminDashboard = () => {
       toast.error(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     }
   };
+  
+  // Recalculer les points pour toutes les équipes
+  const handleRecalculatePoints = () => {
+    toast.success("Points recalculés avec succès");
+    loadRegistrations(); // Recharger les données
+  }
 
   // Mettre à jour le classement des équipes après un entretien
   const updateTeamRankings = () => {
@@ -238,8 +227,14 @@ const AdminDashboard = () => {
     return { secondaire, superieur };
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('admin_authenticated');
+    toast.success("Vous avez été déconnecté avec succès");
+    navigate('/admin');
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-igc-navy/5 to-igc-purple/5">
       <div className="container py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-igc-navy">Tableau de bord Administrateur</h1>
@@ -247,7 +242,7 @@ const AdminDashboard = () => {
           <div className="flex items-center gap-2">
             <Button 
               variant="outline" 
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 border-igc-navy text-igc-navy hover:bg-igc-magenta hover:text-white"
               onClick={() => navigate('/admin/settings')}
             >
               <Settings className="w-4 h-4" />
@@ -255,9 +250,9 @@ const AdminDashboard = () => {
             </Button>
             
             <Button 
-              variant="destructive" 
-              className="flex items-center gap-2"
-              onClick={() => navigate('/admin')}
+              variant="outline" 
+              className="flex items-center gap-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+              onClick={handleLogout}
             >
               <LogOut className="w-4 h-4" />
               Déconnexion
@@ -267,7 +262,7 @@ const AdminDashboard = () => {
 
         {/* Statistiques générales */}
         <div className="grid gap-4 md:grid-cols-4 mb-6">
-          <Card>
+          <Card className="transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Total équipes
@@ -280,7 +275,7 @@ const AdminDashboard = () => {
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Équipes qualifiées QCM
@@ -295,7 +290,7 @@ const AdminDashboard = () => {
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Entretiens réalisés
@@ -314,7 +309,7 @@ const AdminDashboard = () => {
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Équipes sélectionnées
@@ -356,6 +351,7 @@ const AdminDashboard = () => {
                 onTeamUpdate={handleTeamUpdate} 
                 onTeamDelete={handleTeamDelete}
                 onExportTeamPDF={exportTeamPDF}
+                onRecalculatePoints={handleRecalculatePoints}
               />
             </TabsContent>
             
@@ -365,6 +361,7 @@ const AdminDashboard = () => {
                 onTeamUpdate={handleTeamUpdate} 
                 onTeamDelete={handleTeamDelete}
                 onExportTeamPDF={exportTeamPDF}
+                onRecalculatePoints={handleRecalculatePoints}
               />
             </TabsContent>
             
@@ -374,11 +371,12 @@ const AdminDashboard = () => {
                 onTeamUpdate={handleTeamUpdate}
                 onTeamDelete={handleTeamDelete}
                 onExportTeamPDF={exportTeamPDF}
+                onRecalculatePoints={handleRecalculatePoints}
               />
             </TabsContent>
             
             <TabsContent value="statut" className="space-y-4">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-4 mb-4">
                 <label htmlFor="filterStatus" className="text-sm font-medium text-gray-700">Filtrer par statut:</label>
                 <select 
                   id="filterStatus" 
@@ -401,20 +399,16 @@ const AdminDashboard = () => {
                 onTeamUpdate={handleTeamUpdate}
                 onTeamDelete={handleTeamDelete}
                 onExportTeamPDF={exportTeamPDF}
+                onRecalculatePoints={handleRecalculatePoints}
               />
             </TabsContent>
           </Tabs>
         )}
 
         <div className="flex gap-4 mt-4">
-          <Button variant="secondary" onClick={exportToCSV} className="flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Exporter en CSV
-          </Button>
-          
           <Button 
             variant="outline" 
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 border-igc-navy text-igc-navy hover:bg-igc-magenta hover:text-white transition-all duration-300"
             onClick={exportAllTeamsPDF}
           >
             <FileText className="w-4 h-4" />
