@@ -279,14 +279,14 @@ const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF 
               <TableCell>
                 {editingTeam === team.id ? (
                   <Select 
-                    value={tempData.decision || ''} 
-                    onValueChange={(value) => setTempData({...tempData, decision: value as TeamDecision})}
+                    value={tempData.decision || 'none'} 
+                    onValueChange={(value) => setTempData({...tempData, decision: value === 'none' ? undefined : value as TeamDecision})}
                   >
                     <SelectTrigger className="w-[140px]">
                       <SelectValue placeholder="Décision" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Non défini</SelectItem>
+                      <SelectItem value="none">Non défini</SelectItem>
                       <SelectItem value="Sélectionné">Sélectionné</SelectItem>
                       <SelectItem value="Non retenu">Non retenu</SelectItem>
                     </SelectContent>
