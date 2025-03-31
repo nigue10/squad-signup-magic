@@ -1,7 +1,7 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { TeamRegistration, TeamStatus, TeamDecision } from "@/types/igc";
 import { v4 as uuidv4 } from 'uuid';
+import type { Json } from '@/integrations/supabase/types';
 
 // Fonction pour convertir le format TeamRegistration vers le format de la table Supabase
 const convertToSupabaseFormat = (registration: TeamRegistration) => {
@@ -16,12 +16,12 @@ const convertToSupabaseFormat = (registration: TeamRegistration) => {
           name: registration.generalInfo.pedagogicalReferentName,
           email: registration.generalInfo.pedagogicalReferentEmail,
           phone: registration.generalInfo.pedagogicalReferentPhone
-        }
+        } as Json
       : null,
     team_leader: registration.generalInfo.teamLeaderName,
-    members: registration.members,
-    skills: registration.skills,
-    vision: registration.vision,
+    members: registration.members as unknown as Json,
+    skills: registration.skills as unknown as Json,
+    vision: registration.vision as unknown as Json,
     status: registration.status || 'Inscrit',
     qcm_score: registration.qcmScore,
     qcm_qualified: registration.qcmQualified,
