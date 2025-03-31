@@ -1,4 +1,3 @@
-
 import { TeamRegistration, TeamStatus, TeamDecision } from "@/types/igc";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -69,12 +68,13 @@ export const saveRegistration = (registration: TeamRegistration): string => {
     const id = uuidv4();
     const createdAt = new Date().toISOString();
     
-    // Statut initial - use proper TeamStatus type
+    // Statut initial avec typage explicite pour éviter les erreurs
+    const initialStatus: TeamStatus = 'Inscrit';
     const newRegistration: TeamRegistration = { 
       ...registration, 
       id, 
       createdAt,
-      status: 'Inscrit' as TeamStatus // Ensure we use the correct type
+      status: initialStatus
     };
     
     registrations.push(newRegistration);
@@ -119,7 +119,11 @@ export const updateRegistration = (id: string, updatedData: Partial<TeamRegistra
       
       // Validation du statut selon les règles d'étapes
       if (updatedData.status) {
-        validateStatusTransition(registrations[index].status as TeamStatus, updatedData.status as TeamStatus, registrations[index]);
+        validateStatusTransition(
+          registrations[index].status as TeamStatus, 
+          updatedData.status as TeamStatus, 
+          registrations[index]
+        );
       }
       
       // Validation des scores

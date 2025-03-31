@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Table, 
@@ -154,8 +155,7 @@ const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF 
     } catch (error) {
       console.error("Erreur lors de la mise à jour:", error);
       toast("Erreur", {
-        description: "Une erreur est survenue lors de la mise à jour.",
-        variant: "destructive"
+        description: "Une erreur est survenue lors de la mise à jour."
       });
     }
   };
