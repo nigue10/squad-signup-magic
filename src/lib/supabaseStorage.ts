@@ -1,6 +1,6 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { TeamRegistration, TeamStatus, TeamDecision } from "@/types/igc";
-import { v4 as uuidv4 } from 'uuid';
 import type { Json } from '@/integrations/supabase/types';
 
 // Fonction pour convertir le format TeamRegistration vers le format de la table Supabase
@@ -93,7 +93,10 @@ export const getAllRegistrations = async (): Promise<TeamRegistration[]> => {
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error("Erreur lors de la récupération des inscriptions:", error);
+      throw error;
+    }
     
     return data ? data.map(convertFromSupabaseFormat) : [];
   } catch (error) {
@@ -144,6 +147,8 @@ export const saveRegistration = async (registration: TeamRegistration): Promise<
     // Conversion au format Supabase
     const teamData = convertToSupabaseFormat(registration);
     
+    console.log("Données à envoyer à Supabase:", teamData);
+    
     // Insertion dans Supabase
     const { data, error } = await supabase
       .from('teams')
@@ -151,13 +156,16 @@ export const saveRegistration = async (registration: TeamRegistration): Promise<
       .select('id')
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error("Erreur Supabase lors de l'insertion:", error);
+      throw error;
+    }
     
     console.log("Nouvelle inscription sauvegardée avec l'ID:", data.id);
     return data.id;
   } catch (error) {
     console.error("Erreur lors de la sauvegarde de l'inscription:", error);
-    throw new Error("Impossible de sauvegarder l'inscription");
+    throw new Error("Impossible de sauvegarder l'inscription: " + (error instanceof Error ? error.message : 'Erreur inconnue'));
   }
 };
 
@@ -171,8 +179,14 @@ export const updateRegistration = async (id: string, updatedData: Partial<TeamRe
       .eq('id', id)
       .single();
     
-    if (fetchError) throw fetchError;
-    if (!existingTeam) throw new Error(`Inscription ${id} non trouvée`);
+    if (fetchError) {
+      console.error("Erreur lors de la récupération:", fetchError);
+      throw fetchError;
+    }
+    
+    if (!existingTeam) {
+      throw new Error(`Inscription ${id} non trouvée`);
+    }
     
     // Convertir en format TeamRegistration
     const existingRegistration = convertFromSupabaseFormat(existingTeam);
@@ -194,24 +208,6 @@ export const updateRegistration = async (id: string, updatedData: Partial<TeamRe
         console.error("Erreurs de validation lors de la mise à jour:", validationErrors);
         throw new Error(`Validation échouée: ${validationErrors.join(', ')}`);
       }
-    }
-    
-    // Validation du statut selon les règles d'étapes
-    if (updatedData.status) {
-      validateStatusTransition(
-        existingRegistration.status as TeamStatus, 
-        updatedData.status as TeamStatus, 
-        existingRegistration
-      );
-    }
-    
-    // Validation des scores
-    if (updatedData.qcmScore !== undefined && (updatedData.qcmScore < 0 || updatedData.qcmScore > 100)) {
-      throw new Error("Le score QCM doit être entre 0 et 100");
-    }
-    
-    if (updatedData.interviewScore !== undefined && (updatedData.interviewScore < 0 || updatedData.interviewScore > 10)) {
-      throw new Error("Le score d'entretien doit être entre 0 et 10");
     }
     
     // Convertir en format Supabase pour la mise à jour
@@ -251,16 +247,18 @@ export const updateRegistration = async (id: string, updatedData: Partial<TeamRe
           name: updatedData.generalInfo.pedagogicalReferentName || existingRegistration.generalInfo.pedagogicalReferentName,
           email: updatedData.generalInfo.pedagogicalReferentEmail || existingRegistration.generalInfo.pedagogicalReferentEmail,
           phone: updatedData.generalInfo.pedagogicalReferentPhone || existingRegistration.generalInfo.pedagogicalReferentPhone
-        };
+        } as Json;
       }
       
       if (updatedData.generalInfo.teamLeaderName) updateData.team_leader = updatedData.generalInfo.teamLeaderName;
     }
     
     // Mise à jour des membres, compétences et vision si nécessaire
-    if (updatedData.members) updateData.members = updatedData.members;
-    if (updatedData.skills) updateData.skills = updatedData.skills;
-    if (updatedData.vision) updateData.vision = updatedData.vision;
+    if (updatedData.members) updateData.members = updatedData.members as unknown as Json;
+    if (updatedData.skills) updateData.skills = updatedData.skills as unknown as Json;
+    if (updatedData.vision) updateData.vision = updatedData.vision as unknown as Json;
+    
+    console.log("Données de mise à jour:", updateData);
     
     // Effectuer la mise à jour
     const { error: updateError } = await supabase
@@ -268,62 +266,15 @@ export const updateRegistration = async (id: string, updatedData: Partial<TeamRe
       .update(updateData)
       .eq('id', id);
     
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error("Erreur lors de la mise à jour:", updateError);
+      throw updateError;
+    }
     
     console.log(`Inscription ${id} mise à jour avec succès`);
   } catch (error) {
     console.error("Erreur lors de la mise à jour de l'inscription:", error);
     throw new Error("Impossible de mettre à jour l'inscription: " + (error instanceof Error ? error.message : 'Erreur inconnue'));
-  }
-};
-
-// Fonction pour valider la transition d'un statut à un autre
-const validateStatusTransition = (
-  currentStatus: TeamStatus | undefined, 
-  newStatus: TeamStatus,
-  registration: TeamRegistration
-): void => {
-  // Définir l'ordre des statuts
-  const statusOrder: TeamStatus[] = [
-    'Inscrit',
-    'QCM soumis',
-    'Éliminé QCM',
-    'Qualifié pour entretien',
-    'Entretien réalisé',
-    'Sélectionné',
-    'Non retenu'
-  ];
-  
-  // Si le statut actuel n'est pas défini, n'importe quel statut est accepté
-  if (!currentStatus) return;
-  
-  // Vérifier que le nouveau statut est valide
-  if (!statusOrder.includes(newStatus)) {
-    throw new Error(`Statut invalide: ${newStatus}`);
-  }
-  
-  // Vérifier les conditions pour passer à "Qualifié pour entretien"
-  if (newStatus === 'Qualifié pour entretien') {
-    // Un score QCM est requis
-    if (registration.qcmScore === undefined) {
-      throw new Error("Un score QCM est requis pour qualifier une équipe pour l'entretien");
-    }
-    
-    // Vérifier les seuils QCM
-    const threshold = registration.generalInfo.category === 'Secondaire' ? 60 : 70;
-    if (registration.qcmScore < threshold) {
-      throw new Error(`Le score QCM (${registration.qcmScore}) est inférieur au seuil requis (${threshold})`);
-    }
-  }
-  
-  // Vérifier les conditions pour passer à "Entretien réalisé"
-  if (newStatus === 'Entretien réalisé' && registration.interviewScore === undefined) {
-    throw new Error("Un score d'entretien est requis pour marquer l'entretien comme réalisé");
-  }
-  
-  // Le statut final ne peut être que "Sélectionné" ou "Non retenu"
-  if (currentStatus === 'Sélectionné' || currentStatus === 'Non retenu') {
-    throw new Error(`Impossible de changer le statut ${currentStatus}`);
   }
 };
 
@@ -335,12 +286,15 @@ export const deleteRegistration = async (id: string): Promise<void> => {
       .delete()
       .eq('id', id);
     
-    if (error) throw error;
+    if (error) {
+      console.error("Erreur lors de la suppression:", error);
+      throw error;
+    }
     
     console.log(`Inscription ${id} supprimée avec succès`);
   } catch (error) {
     console.error("Erreur lors de la suppression de l'inscription:", error);
-    throw new Error("Impossible de supprimer l'inscription");
+    throw new Error("Impossible de supprimer l'inscription: " + (error instanceof Error ? error.message : 'Erreur inconnue'));
   }
 };
 
@@ -353,7 +307,10 @@ export const getRegistrationById = async (id: string): Promise<TeamRegistration 
       .eq('id', id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error("Erreur lors de la récupération de l'inscription:", error);
+      throw error;
+    }
     
     return data ? convertFromSupabaseFormat(data) : null;
   } catch (error) {
@@ -364,57 +321,63 @@ export const getRegistrationById = async (id: string): Promise<TeamRegistration 
 
 // Exporter toutes les inscriptions au format CSV
 export const exportAllRegistrationsToCSV = async (): Promise<string> => {
-  const registrations = await getAllRegistrations();
-  if (registrations.length === 0) {
-    return "";
-  }
+  try {
+    const registrations = await getAllRegistrations();
+    if (registrations.length === 0) {
+      console.log("Aucune inscription à exporter");
+      return "";
+    }
 
-  // Créer les en-têtes
-  let headers = [
-    "Nom de l'équipe", 
-    "Catégorie", 
-    "Institution", 
-    "Ville", 
-    "Email contact", 
-    "Téléphone contact",
-    "Statut",
-    "Score QCM",
-    "Qualification QCM",
-    "Date d'entretien",
-    "Heure d'entretien",
-    "Score entretien",
-    "Classement",
-    "Décision",
-    "Commentaires"
-  ];
-
-  // Créer les lignes
-  let csvRows = [headers.join(',')];
-
-  // Ajouter les données pour chaque équipe
-  for (const team of registrations) {
-    const row = [
-      escapeCsvValue(team.generalInfo.name),
-      escapeCsvValue(team.generalInfo.category),
-      escapeCsvValue(team.generalInfo.institution),
-      escapeCsvValue(team.generalInfo.city),
-      escapeCsvValue(team.generalInfo.pedagogicalReferentEmail || ''),
-      escapeCsvValue(team.generalInfo.pedagogicalReferentPhone || ''),
-      escapeCsvValue(team.status || ''),
-      team.qcmScore !== undefined ? team.qcmScore : '',
-      team.qcmQualified !== undefined ? (team.qcmQualified ? 'Oui' : 'Non') : '',
-      escapeCsvValue(team.interviewDate || ''),
-      escapeCsvValue(team.interviewTime || ''),
-      team.interviewScore !== undefined ? team.interviewScore : '',
-      team.interviewRank !== undefined ? team.interviewRank : '',
-      escapeCsvValue(team.decision || ''),
-      escapeCsvValue(team.comments || '')
+    // Créer les en-têtes
+    let headers = [
+      "Nom de l'équipe", 
+      "Catégorie", 
+      "Institution", 
+      "Ville", 
+      "Email contact", 
+      "Téléphone contact",
+      "Statut",
+      "Score QCM",
+      "Qualification QCM",
+      "Date d'entretien",
+      "Heure d'entretien",
+      "Score entretien",
+      "Classement",
+      "Décision",
+      "Commentaires"
     ];
-    
-    csvRows.push(row.join(','));
-  }
 
-  return csvRows.join('\n');
+    // Créer les lignes
+    let csvRows = [headers.join(',')];
+
+    // Ajouter les données pour chaque équipe
+    for (const team of registrations) {
+      const row = [
+        escapeCsvValue(team.generalInfo.name),
+        escapeCsvValue(team.generalInfo.category),
+        escapeCsvValue(team.generalInfo.institution),
+        escapeCsvValue(team.generalInfo.city),
+        escapeCsvValue(team.generalInfo.pedagogicalReferentEmail || ''),
+        escapeCsvValue(team.generalInfo.pedagogicalReferentPhone || ''),
+        escapeCsvValue(team.status || ''),
+        team.qcmScore !== undefined ? team.qcmScore : '',
+        team.qcmQualified !== undefined ? (team.qcmQualified ? 'Oui' : 'Non') : '',
+        escapeCsvValue(team.interviewDate || ''),
+        escapeCsvValue(team.interviewTime || ''),
+        team.interviewScore !== undefined ? team.interviewScore : '',
+        team.interviewRank !== undefined ? team.interviewRank : '',
+        escapeCsvValue(team.decision || ''),
+        escapeCsvValue(team.comments || '')
+      ];
+      
+      csvRows.push(row.join(','));
+    }
+
+    return csvRows.join('\n');
+  } catch (error) {
+    console.error("Erreur lors de l'exportation CSV:", error);
+    throw new Error("Impossible d'exporter les données: " + (error instanceof Error ? error.message : 'Erreur inconnue'));
+  }
 };
 
 // Fonction utilitaire pour échapper les valeurs CSV

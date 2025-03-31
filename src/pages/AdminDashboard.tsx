@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ const AdminDashboard = () => {
       try {
         setIsLoading(true);
         const registrations = await getAllRegistrations();
+        console.log("Inscriptions chargées:", registrations);
         setTeams(registrations);
       } catch (error) {
         console.error("Erreur lors du chargement des inscriptions:", error);
@@ -205,7 +207,7 @@ const AdminDashboard = () => {
     // Mettre à jour l'état et sauvegarder dans le localStorage
     setTeams(updatedTeams);
     
-    // Sauvegarder les changements dans le localStorage
+    // Sauvegarder les changements dans Supabase
     updatedTeams.forEach(team => {
       if (team.interviewRank !== undefined && team.id) {
         try {
