@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import {
   updateRegistration, 
   deleteRegistration,
   exportAllRegistrationsToCSV
-} from '@/lib/storage';
+} from '@/lib/supabaseStorage';
 import { TeamRegistration, TeamStatus, TeamCategory } from '@/types/igc';
 import { BarChart, Download, Settings, LogOut, FileText } from 'lucide-react';
 import { getSettings } from '@/lib/settings';
@@ -27,13 +26,22 @@ const AdminDashboard = () => {
   const [teams, setTeams] = useState<TeamRegistration[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(true);
   const settings = getSettings();
 
   useEffect(() => {
-    // Charger les inscriptions depuis le localStorage
-    const loadRegistrations = () => {
-      const registrations = getAllRegistrations();
-      setTeams(registrations);
+    // Charger les inscriptions depuis Supabase
+    const loadRegistrations = async () => {
+      try {
+        setIsLoading(true);
+        const registrations = await getAllRegistrations();
+        setTeams(registrations);
+      } catch (error) {
+        console.error("Erreur lors du chargement des inscriptions:", error);
+        toast.error("Erreur lors du chargement des données");
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadRegistrations();
@@ -101,9 +109,9 @@ const AdminDashboard = () => {
   };
 
   // Mettre à jour une équipe
-  const handleTeamUpdate = (teamId: string, updatedData: Partial<TeamRegistration>) => {
+  const handleTeamUpdate = async (teamId: string, updatedData: Partial<TeamRegistration>) => {
     try {
-      updateRegistration(teamId, updatedData);
+      await updateRegistration(teamId, updatedData);
       
       // Rafraîchir la liste des équipes
       setTeams(prev => 
@@ -116,6 +124,8 @@ const AdminDashboard = () => {
       if (updatedData.interviewScore !== undefined) {
         updateTeamRankings();
       }
+      
+      toast.success("Équipe mise à jour avec succès");
     } catch (error) {
       console.error("Erreur lors de la mise à jour:", error);
       toast.error(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
@@ -123,15 +133,17 @@ const AdminDashboard = () => {
   };
 
   // Supprimer une équipe
-  const handleTeamDelete = (teamId: string) => {
+  const handleTeamDelete = async (teamId: string) => {
     try {
-      deleteRegistration(teamId);
+      await deleteRegistration(teamId);
       
       // Mettre à jour la liste des équipes
       setTeams(prev => prev.filter(team => team.id !== teamId));
       
       // Mettre à jour les classements après la suppression
       updateTeamRankings();
+      
+      toast.success("Équipe supprimée avec succès");
     } catch (error) {
       console.error("Erreur lors de la suppression:", error);
       toast.error(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
@@ -313,72 +325,80 @@ const AdminDashboard = () => {
         </div>
         
         {/* Filtres et Tableau */}
-        <Tabs defaultValue="all" onValueChange={(value) => {
-          if (value === 'secondaire' || value === 'superieur') {
-            setFilterCategory(value);
-          }
-        }}>
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-            <TabsTrigger value="all" onClick={() => setFilterCategory('all')}>Toutes les équipes</TabsTrigger>
-            <TabsTrigger value="secondaire">Secondaire</TabsTrigger>
-            <TabsTrigger value="superieur">Supérieur</TabsTrigger>
-            <TabsTrigger value="statut">Par statut</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="all" className="space-y-4">
-            <TeamTrackingTable 
-              teams={teams} 
-              onTeamUpdate={handleTeamUpdate} 
-              onTeamDelete={handleTeamDelete}
-              onExportTeamPDF={exportTeamPDF}
-            />
-          </TabsContent>
-          
-          <TabsContent value="secondaire" className="space-y-4">
-            <TeamTrackingTable 
-              teams={filteredTeamsByCategory.filter(team => team.generalInfo.category === 'Secondaire')} 
-              onTeamUpdate={handleTeamUpdate} 
-              onTeamDelete={handleTeamDelete}
-              onExportTeamPDF={exportTeamPDF}
-            />
-          </TabsContent>
-          
-          <TabsContent value="superieur" className="space-y-4">
-            <TeamTrackingTable 
-              teams={filteredTeamsByCategory.filter(team => team.generalInfo.category === 'Supérieur')} 
-              onTeamUpdate={handleTeamUpdate}
-              onTeamDelete={handleTeamDelete}
-              onExportTeamPDF={exportTeamPDF}
-            />
-          </TabsContent>
-          
-          <TabsContent value="statut" className="space-y-4">
-            <div className="flex items-center space-x-4">
-              <label htmlFor="filterStatus" className="text-sm font-medium text-gray-700">Filtrer par statut:</label>
-              <select 
-                id="filterStatus" 
-                className="border border-gray-300 rounded-md p-2 text-sm"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="Inscrit">Inscrit</option>
-                <option value="QCM soumis">QCM soumis</option>
-                <option value="Éliminé QCM">Éliminé QCM</option>
-                <option value="Qualifié pour entretien">Qualifié pour entretien</option>
-                <option value="Entretien réalisé">Entretien réalisé</option>
-                <option value="Sélectionné">Sélectionné</option>
-                <option value="Non retenu">Non retenu</option>
-              </select>
-            </div>
-            <TeamTrackingTable 
-              teams={filteredTeams} 
-              onTeamUpdate={handleTeamUpdate}
-              onTeamDelete={handleTeamDelete}
-              onExportTeamPDF={exportTeamPDF}
-            />
-          </TabsContent>
-        </Tabs>
+        
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-igc-navy"></div>
+          </div>
+        ) : (
+          // ... keep existing code (tabs and table components)
+          <Tabs defaultValue="all" onValueChange={(value) => {
+            if (value === 'secondaire' || value === 'superieur') {
+              setFilterCategory(value);
+            }
+          }}>
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+              <TabsTrigger value="all" onClick={() => setFilterCategory('all')}>Toutes les équipes</TabsTrigger>
+              <TabsTrigger value="secondaire">Secondaire</TabsTrigger>
+              <TabsTrigger value="superieur">Supérieur</TabsTrigger>
+              <TabsTrigger value="statut">Par statut</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="all" className="space-y-4">
+              <TeamTrackingTable 
+                teams={teams} 
+                onTeamUpdate={handleTeamUpdate} 
+                onTeamDelete={handleTeamDelete}
+                onExportTeamPDF={exportTeamPDF}
+              />
+            </TabsContent>
+            
+            <TabsContent value="secondaire" className="space-y-4">
+              <TeamTrackingTable 
+                teams={filteredTeamsByCategory.filter(team => team.generalInfo.category === 'Secondaire')} 
+                onTeamUpdate={handleTeamUpdate} 
+                onTeamDelete={handleTeamDelete}
+                onExportTeamPDF={exportTeamPDF}
+              />
+            </TabsContent>
+            
+            <TabsContent value="superieur" className="space-y-4">
+              <TeamTrackingTable 
+                teams={filteredTeamsByCategory.filter(team => team.generalInfo.category === 'Supérieur')} 
+                onTeamUpdate={handleTeamUpdate}
+                onTeamDelete={handleTeamDelete}
+                onExportTeamPDF={exportTeamPDF}
+              />
+            </TabsContent>
+            
+            <TabsContent value="statut" className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <label htmlFor="filterStatus" className="text-sm font-medium text-gray-700">Filtrer par statut:</label>
+                <select 
+                  id="filterStatus" 
+                  className="border border-gray-300 rounded-md p-2 text-sm"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  <option value="all">Tous les statuts</option>
+                  <option value="Inscrit">Inscrit</option>
+                  <option value="QCM soumis">QCM soumis</option>
+                  <option value="Éliminé QCM">Éliminé QCM</option>
+                  <option value="Qualifié pour entretien">Qualifié pour entretien</option>
+                  <option value="Entretien réalisé">Entretien réalisé</option>
+                  <option value="Sélectionné">Sélectionné</option>
+                  <option value="Non retenu">Non retenu</option>
+                </select>
+              </div>
+              <TeamTrackingTable 
+                teams={filteredTeams} 
+                onTeamUpdate={handleTeamUpdate}
+                onTeamDelete={handleTeamDelete}
+                onExportTeamPDF={exportTeamPDF}
+              />
+            </TabsContent>
+          </Tabs>
+        )}
 
         <div className="flex gap-4 mt-4">
           <Button variant="secondary" onClick={exportToCSV} className="flex items-center gap-2">

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -10,12 +9,13 @@ import TeamVisionForm from '@/components/TeamVisionForm';
 import { TeamRegistration, TeamGeneralInfo, TeamMember, TeamSkills, TeamVision } from '@/types/igc';
 import { createEmptyMember, isValidEmail, isValidPhone } from '@/lib/helpers';
 import { useNavigate } from 'react-router-dom';
-import { saveRegistration } from '@/lib/storage';
+import { saveRegistration } from '@/lib/supabaseStorage';
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, AlertCircle } from "lucide-react";
+import { toast } from 'sonner';
 
 const RegistrationForm = () => {
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentSection, setCurrentSection] = useState(0);
@@ -172,7 +172,7 @@ const RegistrationForm = () => {
       // Vérification des données requises
       const requiredFields = validateForm();
       if (requiredFields.length > 0) {
-        toast({
+        uiToast({
           title: "Champs requis manquants",
           description: (
             <div className="flex items-start space-x-2">
@@ -196,7 +196,7 @@ const RegistrationForm = () => {
       // Vérification des emails et téléphones
       const contactErrors = validateContacts();
       if (contactErrors.length > 0) {
-        toast({
+        uiToast({
           title: "Erreurs de validation",
           description: (
             <div className="flex items-start space-x-2">
@@ -218,22 +218,13 @@ const RegistrationForm = () => {
       }
       
       // Sauvegarde de l'inscription
-      const registrationId = saveRegistration(registration);
+      const registrationId = await saveRegistration(registration);
       
       console.log("Équipe enregistrée avec l'ID:", registrationId);
       
       // Notification de succès
-      toast({
-        title: "Inscription envoyée !",
-        description: (
-          <div className="flex items-start space-x-2">
-            <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-medium">Votre équipe a été inscrite avec succès.</p>
-              <p className="text-sm mt-1">Un email de confirmation vous sera envoyé prochainement.</p>
-            </div>
-          </div>
-        ),
+      toast.success("Inscription envoyée !", {
+        description: "Votre équipe a été inscrite avec succès. Un email de confirmation vous sera envoyé prochainement."
       });
       
       // Redirection vers la page d'accueil après 2 secondes
@@ -243,10 +234,8 @@ const RegistrationForm = () => {
       
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error);
-      toast({
-        title: "Erreur lors de l'inscription",
-        description: "Une erreur est survenue. Veuillez réessayer plus tard.",
-        variant: "destructive",
+      toast.error("Erreur lors de l'inscription", {
+        description: "Une erreur est survenue. Veuillez réessayer plus tard."
       });
     } finally {
       setIsSubmitting(false);
