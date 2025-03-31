@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Table, 
@@ -270,7 +269,9 @@ const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF 
                 {team.interviewTime || '-'}
               </TableCell>
               <TableCell>
-                {team.interviewScore !== undefined ? team.interviewScore.toFixed(1) : '-'}
+                {team.interviewScore !== undefined && team.interviewScore !== null 
+                  ? team.interviewScore.toFixed(1) 
+                  : '-'}
               </TableCell>
               <TableCell>
                 {team.interviewRank !== undefined ? `#${team.interviewRank}` : '-'}
