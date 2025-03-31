@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Table, 
@@ -141,8 +140,7 @@ const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF 
       // Appliquer les mises à jour
       onTeamUpdate(teamId, tempData);
       
-      toast({
-        title: "Modifications enregistrées",
+      toast("Modifications enregistrées", {
         description: "Les informations de l'équipe ont été mises à jour."
       });
       
@@ -155,8 +153,7 @@ const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF 
       
     } catch (error) {
       console.error("Erreur lors de la mise à jour:", error);
-      toast({
-        title: "Erreur",
+      toast("Erreur", {
         description: "Une erreur est survenue lors de la mise à jour.",
         variant: "destructive"
       });
@@ -183,8 +180,7 @@ const TeamTrackingTable = ({ teams, onTeamUpdate, onTeamDelete, onExportTeamPDF 
   const handleDeleteTeam = (teamId: string) => {
     if (onTeamDelete) {
       onTeamDelete(teamId);
-      toast({
-        title: "Équipe supprimée",
+      toast("Équipe supprimée", {
         description: "L'équipe a été supprimée avec succès."
       });
       setDeleteDialog(null);
