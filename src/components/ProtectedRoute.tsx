@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { toast } from "sonner";
 
 interface ProtectedRouteProps {
@@ -10,6 +10,7 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const location = useLocation();
 
   useEffect(() => {
     const checkAuth = () => {
@@ -21,6 +22,9 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     checkAuth();
   }, []);
 
+  // Check if the path starts with /admin
+  const isAdminRoute = location.pathname.startsWith('/admin') && location.pathname !== '/admin';
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -29,7 +33,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && isAdminRoute) {
     toast.error("Accès restreint. Veuillez vous connecter.");
     return <Navigate to="/admin" replace />;
   }

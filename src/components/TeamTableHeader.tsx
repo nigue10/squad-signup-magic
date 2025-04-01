@@ -7,7 +7,10 @@ import {
 } from "@/components/ui/table";
 import { ArrowUpDown } from 'lucide-react';
 
-type SortKey = 'name' | 'institution' | 'category' | 'qcmScore' | 'status';
+type SortKey = 'name' | 'category' | 'institution' | 'city' | 'email' | 'phone' | 
+               'status' | 'qcmScore' | 'qcmQualified' | 'interviewDate' | 'interviewTime' | 
+               'interviewLink' | 'interviewScore' | 'interviewNotes' | 'interviewRank' | 
+               'decision' | 'comments';
 type SortOrder = 'asc' | 'desc';
 
 interface TeamTableHeaderProps {
@@ -16,44 +19,38 @@ interface TeamTableHeaderProps {
 }
 
 const TeamTableHeader = ({ onSort, sortConfig }: TeamTableHeaderProps) => {
+  const renderSortableHeader = (key: SortKey, label: string) => (
+    <TableHead 
+      className="cursor-pointer text-white hover:text-igc-purple transition-colors font-semibold px-3 py-3"
+      onClick={() => onSort(key)}
+    >
+      <div className="flex items-center">
+        {label}
+        <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+      </div>
+    </TableHead>
+  );
+
   return (
     <TableHeader className="bg-igc-navy text-white">
       <TableRow>
-        <TableHead 
-          className="cursor-pointer text-white hover:text-igc-purple transition-colors"
-          onClick={() => onSort('name')}
-        >
-          Nom de l'équipe
-          <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-        </TableHead>
-        <TableHead 
-          className="cursor-pointer text-white hover:text-igc-purple transition-colors"
-          onClick={() => onSort('institution')}
-        >
-          École/Institution
-          <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-        </TableHead>
-        <TableHead 
-          className="cursor-pointer text-white hover:text-igc-purple transition-colors"
-          onClick={() => onSort('category')}
-        >
-          Catégorie
-          <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-        </TableHead>
-        <TableHead 
-          className="cursor-pointer text-white hover:text-igc-purple transition-colors"
-          onClick={() => onSort('qcmScore')}
-        >
-          Points
-          <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-        </TableHead>
-        <TableHead 
-          className="cursor-pointer text-white hover:text-igc-purple transition-colors"
-          onClick={() => onSort('status')}
-        >
-          Statut
-          <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-        </TableHead>
+        {renderSortableHeader('name', "Nom de l'équipe")}
+        {renderSortableHeader('category', "Catégorie")}
+        {renderSortableHeader('institution', "École/Université")}
+        {renderSortableHeader('city', "Ville")}
+        {renderSortableHeader('email', "Email")}
+        {renderSortableHeader('phone', "Numéro WhatsApp")}
+        {renderSortableHeader('status', "Statut")}
+        {renderSortableHeader('qcmScore', "Score QCM")}
+        {renderSortableHeader('qcmQualified', "Qualification QCM")}
+        {renderSortableHeader('interviewDate', "Date entretien")}
+        {renderSortableHeader('interviewTime', "Heure entretien")}
+        {renderSortableHeader('interviewLink', "Lien Google Meet")}
+        {renderSortableHeader('interviewScore', "Score entretien")}
+        {renderSortableHeader('interviewNotes', "Notes interviewers")}
+        {renderSortableHeader('interviewRank', "Classement entretien")}
+        {renderSortableHeader('decision', "Décision")}
+        {renderSortableHeader('comments', "Commentaires")}
         <TableHead className="text-white">Actions</TableHead>
       </TableRow>
     </TableHeader>

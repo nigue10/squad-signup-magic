@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -7,13 +8,15 @@ import TeamTrackingTable from '@/components/TeamTrackingTable';
 import { 
   getAllRegistrations, 
   updateRegistration, 
-  deleteRegistration
-} from '@/lib/storage';
+  deleteRegistration,
+  exportAllRegistrationsToCSV
+} from '@/lib/supabaseStorage';
 import { TeamRegistration, TeamStatus, TeamCategory } from '@/types/igc';
 import { BarChart, Download, Settings, LogOut, FileText, RefreshCw } from 'lucide-react';
 import { getSettings } from '@/lib/settings';
-import { generateTeamPDF, generateAllTeamsPDF } from '@/lib/pdfGenerator';
+import { generateTeamPDF } from '@/lib/pdfGenerator';
 import { toast } from 'sonner';
+import { recalculateAllTeamsData } from '@/utils/teamCalculations';
 
 interface CategorizedCounts {
   secondaire: number;
@@ -77,24 +80,26 @@ const AdminDashboard = () => {
     }
   };
 
-  // Exporter toutes les équipes au format PDF
-  const exportAllTeamsPDF = async () => {
+  // Exporter toutes les équipes au format CSV
+  const exportTeamsCSV = async () => {
     try {
-      if (teams.length === 0) {
-        toast.error("Aucune équipe à exporter");
-        return;
-      }
+      const csv = await exportAllRegistrationsToCSV();
       
-      toast.info("Génération des fiches PDF en cours...", {
-        duration: 3000,
-      });
+      // Create a blob and download link
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'equipes_igc.csv');
       
-      await generateAllTeamsPDF();
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
-      toast.success(`${teams.length} fiches d'équipes exportées en PDF`);
+      toast.success("Données exportées avec succès au format CSV");
     } catch (error) {
-      console.error("Erreur lors de l'exportation des PDF:", error);
-      toast.error("Erreur lors de l'exportation des fiches PDF");
+      console.error("Erreur lors de l'exportation CSV:", error);
+      toast.error("Erreur lors de l'exportation CSV");
     }
   };
 
@@ -109,11 +114,6 @@ const AdminDashboard = () => {
           team.id === teamId ? { ...team, ...updatedData } : team
         )
       );
-      
-      // Mettre à jour les classements si nécessaire
-      if (updatedData.interviewScore !== undefined) {
-        updateTeamRankings();
-      }
       
       toast.success("Équipe mise à jour avec succès");
     } catch (error) {
@@ -130,9 +130,6 @@ const AdminDashboard = () => {
       // Mettre à jour la liste des équipes
       setTeams(prev => prev.filter(team => team.id !== teamId));
       
-      // Mettre à jour les classements après la suppression
-      updateTeamRankings();
-      
       toast.success("Équipe supprimée avec succès");
     } catch (error) {
       console.error("Erreur lors de la suppression:", error);
@@ -140,75 +137,38 @@ const AdminDashboard = () => {
     }
   };
   
-  // Recalculer les points pour toutes les équipes
-  const handleRecalculatePoints = () => {
-    toast.success("Points recalculés avec succès");
-    loadRegistrations(); // Recharger les données
-  }
-
-  // Mettre à jour le classement des équipes après un entretien
-  const updateTeamRankings = () => {
-    // Séparer les équipes par catégorie
-    const secondaryTeams = teams.filter(team => team.generalInfo.category === 'Secondaire');
-    const higherTeams = teams.filter(team => team.generalInfo.category === 'Supérieur');
-    
-    // Mettre à jour le classement pour chaque catégorie séparément
-    const updateCategoryRankings = (categoryTeams: TeamRegistration[]) => {
-      // Trier les équipes par score d'entretien décroissant
-      const sortedTeams = [...categoryTeams].sort((a, b) => {
-        // Gérer le cas où interviewScore est undefined
-        const scoreA = a.interviewScore === undefined ? -1 : a.interviewScore;
-        const scoreB = b.interviewScore === undefined ? -1 : b.interviewScore;
-        return scoreB - scoreA;
-      });
+  // Recalculer les points et les classements pour toutes les équipes
+  const handleRecalculateAll = async () => {
+    try {
+      toast.info("Recalcul en cours...");
       
-      // Assigner le rang en fonction du score (seulement aux équipes avec un score)
-      return sortedTeams.map((team, index) => {
-        if (team.interviewScore !== undefined) {
-          return {
-            ...team,
-            interviewRank: index + 1,
-            decision: determineDecision(team.generalInfo.category, index + 1)
-          };
-        }
-        return team;
-      });
-    };
-    
-    // Déterminer la décision en fonction du classement et de la catégorie
-    const determineDecision = (category: TeamCategory, rank: number): "Sélectionné" | "Non retenu" | undefined => {
-      if (category === 'Secondaire' && rank <= settings.secondaryTeamSelectionCount) {
-        return "Sélectionné";
-      }
-      if (category === 'Supérieur' && rank <= settings.higherTeamSelectionCount) {
-        return "Sélectionné";
-      }
-      return rank ? "Non retenu" : undefined;
-    };
-    
-    // Mettre à jour les classements
-    const updatedSecondaryTeams = updateCategoryRankings(secondaryTeams);
-    const updatedHigherTeams = updateCategoryRankings(higherTeams);
-    
-    // Mettre à jour l'état avec les équipes classées
-    const updatedTeams = [...updatedSecondaryTeams, ...updatedHigherTeams];
-    
-    // Mettre à jour l'état et sauvegarder dans le localStorage
-    setTeams(updatedTeams);
-    
-    // Sauvegarder les changements dans Supabase
-    updatedTeams.forEach(team => {
-      if (team.interviewRank !== undefined && team.id) {
-        try {
-          updateRegistration(team.id, {
-            interviewRank: team.interviewRank,
-            decision: team.decision
-          });
-        } catch (error) {
-          console.error(`Erreur lors de la mise à jour du rang pour l'équipe ${team.id}:`, error);
+      // Get updates for all teams
+      const updates = recalculateAllTeamsData(teams);
+      
+      // Apply updates to database and state
+      for (const update of updates) {
+        const teamId = update.id;
+        if (teamId) {
+          delete update.id; // Remove id from update object
+          await updateRegistration(teamId, update);
+          
+          // Update local state
+          setTeams(prev => 
+            prev.map(team => 
+              team.id === teamId ? { ...team, ...update } : team
+            )
+          );
         }
       }
-    });
+      
+      toast.success("Recalcul terminé avec succès");
+      
+      // Refresh data from server
+      loadRegistrations();
+    } catch (error) {
+      console.error("Erreur lors du recalcul:", error);
+      toast.error(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    }
   };
 
   // Catégoriser le nombre d'équipes
@@ -242,7 +202,7 @@ const AdminDashboard = () => {
           <div className="flex items-center gap-2">
             <Button 
               variant="outline" 
-              className="flex items-center gap-2 border-igc-navy text-igc-navy hover:bg-igc-magenta hover:text-white"
+              className="flex items-center gap-2 border-igc-navy text-igc-navy hover:bg-igc-magenta hover:text-white transition-all duration-300 rounded-[47px]"
               onClick={() => navigate('/admin/settings')}
             >
               <Settings className="w-4 h-4" />
@@ -251,7 +211,7 @@ const AdminDashboard = () => {
             
             <Button 
               variant="outline" 
-              className="flex items-center gap-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+              className="flex items-center gap-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all duration-300 rounded-[47px]"
               onClick={handleLogout}
             >
               <LogOut className="w-4 h-4" />
@@ -351,7 +311,7 @@ const AdminDashboard = () => {
                 onTeamUpdate={handleTeamUpdate} 
                 onTeamDelete={handleTeamDelete}
                 onExportTeamPDF={exportTeamPDF}
-                onRecalculatePoints={handleRecalculatePoints}
+                onRecalculatePoints={handleRecalculateAll}
               />
             </TabsContent>
             
@@ -361,7 +321,7 @@ const AdminDashboard = () => {
                 onTeamUpdate={handleTeamUpdate} 
                 onTeamDelete={handleTeamDelete}
                 onExportTeamPDF={exportTeamPDF}
-                onRecalculatePoints={handleRecalculatePoints}
+                onRecalculatePoints={handleRecalculateAll}
               />
             </TabsContent>
             
@@ -371,7 +331,7 @@ const AdminDashboard = () => {
                 onTeamUpdate={handleTeamUpdate}
                 onTeamDelete={handleTeamDelete}
                 onExportTeamPDF={exportTeamPDF}
-                onRecalculatePoints={handleRecalculatePoints}
+                onRecalculatePoints={handleRecalculateAll}
               />
             </TabsContent>
             
@@ -399,20 +359,29 @@ const AdminDashboard = () => {
                 onTeamUpdate={handleTeamUpdate}
                 onTeamDelete={handleTeamDelete}
                 onExportTeamPDF={exportTeamPDF}
-                onRecalculatePoints={handleRecalculatePoints}
+                onRecalculatePoints={handleRecalculateAll}
               />
             </TabsContent>
           </Tabs>
         )}
 
-        <div className="flex gap-4 mt-4">
+        <div className="flex gap-4 mt-6">
           <Button 
             variant="outline" 
-            className="flex items-center gap-2 border-igc-navy text-igc-navy hover:bg-igc-magenta hover:text-white transition-all duration-300"
-            onClick={exportAllTeamsPDF}
+            className="flex items-center gap-2 border-igc-navy text-igc-navy hover:bg-igc-magenta hover:text-white transition-all duration-300 rounded-[47px]"
+            onClick={exportTeamsCSV}
           >
-            <FileText className="w-4 h-4" />
-            Exporter toutes les fiches PDF
+            <Download className="w-4 h-4" />
+            Exporter données (CSV)
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 border-igc-navy text-igc-navy hover:bg-igc-magenta hover:text-white transition-all duration-300 rounded-[47px]"
+            onClick={handleRecalculateAll}
+          >
+            <RefreshCw className="w-4 h-4" />
+            Recalculer tous les classements
           </Button>
         </div>
       </div>
