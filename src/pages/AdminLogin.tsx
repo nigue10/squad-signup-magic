@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ const LOCKOUT_DURATION = 10;
 
 const AdminLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -32,11 +33,17 @@ const AdminLogin = () => {
   
   // Vérifier si l'administrateur est déjà connecté
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem('admin_authenticated');
-    if (isLoggedIn === 'true') {
-      navigate('/admin/dashboard');
+    const isLoggedIn = localStorage.getItem('admin_authenticated') === 'true';
+    // For extra security, also check expiration
+    const authExpiry = localStorage.getItem('admin_auth_expiry');
+    const isExpired = authExpiry ? new Date(authExpiry) < new Date() : true;
+    
+    if (isLoggedIn && !isExpired) {
+      // Redirect to the intended page or default to dashboard
+      const from = location.state?.from || '/admin/dashboard';
+      navigate(from);
     }
-  }, [navigate]);
+  }, [navigate, location]);
   
   // Vérifier si l'accès est bloqué
   useEffect(() => {
@@ -97,13 +104,19 @@ const AdminLogin = () => {
         // Stockage du statut d'authentification dans le localStorage
         localStorage.setItem('admin_authenticated', 'true');
         
+        // Définir une expiration de session (24 heures par défaut)
+        const expiryDate = new Date();
+        expiryDate.setHours(expiryDate.getHours() + 24);
+        localStorage.setItem('admin_auth_expiry', expiryDate.toISOString());
+        
         // Notification de succès
         toast.success("Connexion réussie", {
           description: "Bienvenue dans l'espace administrateur IGC",
         });
         
-        // Redirection vers le tableau de bord
-        navigate('/admin/dashboard');
+        // Redirection vers le tableau de bord ou la page d'origine
+        const from = location.state?.from || '/admin/dashboard';
+        navigate(from);
       } else {
         // Incrémenter le compteur de tentatives
         const newAttempts = loginAttempts + 1;
@@ -145,7 +158,7 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-igc-navy/5 to-igc-purple/5 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border-none shadow-lg bg-white rounded-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
+      <Card className="w-full max-w-md border-none shadow-lg bg-white rounded-lg overflow-hidden transition-all duration-300 hover:shadow-xl animate-fade-in">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
             <img 
@@ -231,7 +244,7 @@ const AdminLogin = () => {
               </div>
               <Button
                 type="submit"
-                className="w-full bg-igc-navy hover:bg-igc-magenta"
+                className="w-full bg-igc-navy hover:bg-igc-magenta transition-all duration-300"
                 disabled={isLoading}
               >
                 {isLoading ? (

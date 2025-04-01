@@ -1,14 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 const LogoHeader: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Check authentication status for admin link
   const isAdminAuthenticated = localStorage.getItem('admin_authenticated') === 'true';
+  // Check expiration
+  const authExpiry = localStorage.getItem('admin_auth_expiry');
+  const isExpired = authExpiry ? new Date(authExpiry) < new Date() : true;
+  const isAuthenticated = isAdminAuthenticated && !isExpired;
 
   // Handle scroll effect for header
   useEffect(() => {
@@ -19,6 +24,13 @@ const LogoHeader: React.FC = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin_authenticated');
+    localStorage.removeItem('admin_auth_expiry');
+    navigate('/admin');
+    setIsMenuOpen(false);
+  };
 
   return (
     <>
@@ -83,14 +95,34 @@ const LogoHeader: React.FC = () => {
                 </Link>
               </li>
               <li className="overflow-hidden">
-                <Link 
-                  to={isAdminAuthenticated ? "/admin/dashboard" : "/admin"} 
-                  className="block text-3xl md:text-4xl font-medium text-igc-navy hover:text-igc-magenta transition-all duration-300 transform hover:translate-x-2"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Admin
-                </Link>
+                {isAuthenticated ? (
+                  <Link 
+                    to="/admin/dashboard" 
+                    className="block text-3xl md:text-4xl font-medium text-igc-navy hover:text-igc-magenta transition-all duration-300 transform hover:translate-x-2"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Administration
+                  </Link>
+                ) : (
+                  <Link 
+                    to="/admin" 
+                    className="block text-3xl md:text-4xl font-medium text-igc-navy hover:text-igc-magenta transition-all duration-300 transform hover:translate-x-2"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Connexion Admin
+                  </Link>
+                )}
               </li>
+              {isAuthenticated && (
+                <li className="overflow-hidden">
+                  <button 
+                    className="block text-3xl md:text-4xl font-medium text-red-500 hover:text-red-700 transition-all duration-300 transform hover:translate-x-2"
+                    onClick={handleLogout}
+                  >
+                    Déconnexion
+                  </button>
+                </li>
+              )}
             </ul>
           </nav>
           

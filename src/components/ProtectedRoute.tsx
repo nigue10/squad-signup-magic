@@ -18,7 +18,7 @@ const ProtectedRoute = ({ children, requireAdmin = true }: ProtectedRouteProps) 
     const checkAuth = () => {
       const isLoggedIn = localStorage.getItem('admin_authenticated') === 'true';
       
-      // For extra security, also check expiration
+      // Pour extra security, also check expiration
       const authExpiry = localStorage.getItem('admin_auth_expiry');
       const isExpired = authExpiry ? new Date(authExpiry) < new Date() : true;
       
