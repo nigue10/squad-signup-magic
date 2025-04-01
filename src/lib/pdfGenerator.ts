@@ -4,55 +4,7 @@ import autoTable from 'jspdf-autotable';
 import { getRegistrationById, getAllRegistrations } from './storage';
 import { getSettings } from './settings';
 import { TeamRegistration } from '@/types/igc';
-
-/**
- * Calcule les points pour une équipe spécifique
- * @param team Équipe
- */
-const calculatePoints = (team: TeamRegistration): number => {
-  let points = 0;
-  
-  // Points from QCM score (if available)
-  if (team.qcmScore) {
-    points += team.qcmScore;
-  }
-  
-  // Points from interview score (if available, scaled to match QCM scale)
-  if (team.interviewScore !== undefined && team.interviewScore !== null) {
-    // Interview score is on scale of 0-10, multiply by 10 to match QCM scale
-    points += team.interviewScore * 10;
-  }
-  
-  // Bonus points for team composition diversity
-  if (team.members) {
-    const hasMaleMembers = team.members.some(member => member.gender === 'M');
-    const hasFemaleMembers = team.members.some(member => member.gender === 'F');
-    
-    // Bonus for gender diversity
-    if (hasMaleMembers && hasFemaleMembers) {
-      points += 5;
-    }
-  }
-  
-  // Bonus points for skills diversity
-  if (team.skills) {
-    let skillCount = 0;
-    if (team.skills.arduino) skillCount++;
-    if (team.skills.sensors) skillCount++;
-    if (team.skills.design3d) skillCount++;
-    if (team.skills.basicElectronics) skillCount++;
-    if (team.skills.programming) skillCount++;
-    if (team.skills.robotDesign) skillCount++;
-    if (team.skills.remoteControl) skillCount++;
-    if (team.skills.teamwork) skillCount++;
-    if (team.skills.other) skillCount++;
-    
-    // Add bonus points based on skill diversity
-    points += skillCount * 2;
-  }
-  
-  return Math.round(points);
-};
+import { createPdfBackground, addLogos, addHeader, addPdfFooter, getTeamPoints } from './pdfUtils';
 
 /**
  * Génère un PDF pour une équipe spécifique
@@ -69,48 +21,15 @@ export const generateTeamPDF = async (teamId: string): Promise<void> => {
     const settings = getSettings();
     
     // Calculer les points
-    const points = calculatePoints(team);
+    const points = getTeamPoints(team);
     
     // Créer un nouveau document PDF
     const doc = new jsPDF();
     
-    // Ajouter un fond avec gradient
-    doc.setFillColor(230, 230, 245); // Light purple/blue background
-    doc.rect(0, 0, doc.internal.pageSize.width, doc.internal.pageSize.height, 'F');
-    
-    // Ajouter un overlay décoratif
-    doc.setFillColor(27, 20, 100, 0.03); // igc-navy with low opacity
-    for (let i = 0; i < 10; i++) {
-      const x = Math.random() * doc.internal.pageSize.width;
-      const y = Math.random() * doc.internal.pageSize.height;
-      const size = 20 + Math.random() * 50;
-      doc.circle(x, y, size, 'F');
-    }
-    
-    // Ajouter les logos
-    try {
-      const leftLogoWidth = 25;
-      const rightLogoWidth = 35;
-      
-      // Logo gauche (robot IGC)
-      doc.addImage("/lovable-uploads/f2bba9e8-108e-4607-9b68-2192cbc4963a.png", "PNG", 15, 10, leftLogoWidth, leftLogoWidth);
-      
-      // Logo droit (texte IGC)
-      doc.addImage("/lovable-uploads/034e2fe6-1491-4af1-a834-7b32d6879658.png", "PNG", doc.internal.pageSize.width - rightLogoWidth - 15, 10, rightLogoWidth, 17);
-    } catch (error) {
-      console.error("Erreur lors de l'ajout des logos:", error);
-    }
-    
-    // Ajouter un titre
-    doc.setFontSize(14);
-    doc.setTextColor(120, 120, 120);
-    doc.text("Ivorian Genius Contest " + settings.applicationYear, 105, 20, { align: 'center' });
-    
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(27, 20, 100); // Couleur IGC Navy
-    doc.text("FICHE D'ÉQUIPE - IGC " + settings.applicationYear, 105, 35, { align: 'center' });
-    doc.setFont("helvetica", "normal");
+    // Create background and add logos
+    createPdfBackground(doc);
+    addLogos(doc);
+    addHeader(doc, settings);
     
     // Partie 1: Informations Générales sur l'Équipe
     let yPos = 50;
@@ -366,26 +285,8 @@ export const generateTeamPDF = async (teamId: string): Promise<void> => {
       doc.rect(0, 0, doc.internal.pageSize.width, doc.internal.pageSize.height, 'F');
     }
     
-    // Ajouter un pied de page sur toutes les pages
-    const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
-      doc.text(
-        `Ivorian Genius Contest ${settings.applicationYear} - Fiche d'équipe ${team.generalInfo.name}`,
-        105, 
-        doc.internal.pageSize.height - 10, 
-        { align: 'center' }
-      );
-      
-      // Numéro de page
-      doc.text(
-        `Page ${i} / ${pageCount}`,
-        doc.internal.pageSize.width - 20, 
-        doc.internal.pageSize.height - 10
-      );
-    }
+    // Add footer with page numbers
+    addPdfFooter(doc, team, settings);
     
     // Télécharger le PDF
     doc.save(`IGC_Fiche_${team.generalInfo.name.replace(/\s+/g, '_')}.pdf`);
@@ -430,4 +331,3 @@ export const generateAllTeamsPDF = async (): Promise<void> => {
     throw error;
   }
 };
-
