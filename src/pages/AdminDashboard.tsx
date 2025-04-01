@@ -3,38 +3,59 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import TeamTrackingTable from '@/components/TeamTrackingTable';
+import AdminDashboardStats from '@/components/AdminDashboardStats';
+import AdminFilterBar, { FilterState } from '@/components/AdminFilterBar';
 import { 
   getAllRegistrations, 
   updateRegistration, 
   deleteRegistration,
   exportAllRegistrationsToCSV
 } from '@/lib/supabaseStorage';
+import { 
+  sendRegistrationConfirmation, 
+  sendInterviewInvitation, 
+  sendDecisionNotification 
+} from '@/lib/emailService';
 import { TeamRegistration, TeamStatus, TeamCategory } from '@/types/igc';
-import { BarChart, Download, Settings, LogOut, FileText, RefreshCw } from 'lucide-react';
+import { 
+  Download, 
+  Settings, 
+  LogOut, 
+  FileText, 
+  RefreshCw, 
+  Mail 
+} from 'lucide-react';
 import { getSettings } from '@/lib/settings';
-import { generateTeamPDF } from '@/lib/pdfGenerator';
+import { generateTeamPDF, generateAllTeamsPDF } from '@/lib/pdfGenerator';
 import { toast } from 'sonner';
 import { recalculateAllTeamsData } from '@/utils/teamCalculations';
-
-interface CategorizedCounts {
-  secondaire: number;
-  superieur: number;
-}
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [teams, setTeams] = useState<TeamRegistration[]>([]);
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filteredTeams, setFilteredTeams] = useState<TeamRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filters, setFilters] = useState<FilterState>({
+    category: 'all',
+    status: 'all',
+    qcmScoreMin: null,
+    qcmScoreMax: null,
+    interviewScoreMin: null,
+    interviewScoreMax: null,
+    interviewDateStart: '',
+    interviewDateEnd: '',
+    searchTerm: ''
+  });
   const settings = getSettings();
   
   useEffect(() => {
     // Check authentication
     const isLoggedIn = localStorage.getItem('admin_authenticated');
-    if (isLoggedIn !== 'true') {
+    const authExpiry = localStorage.getItem('admin_auth_expiry');
+    const isExpired = authExpiry ? new Date(authExpiry) < new Date() : true;
+    
+    if (isLoggedIn !== 'true' || isExpired) {
       toast.error("Accès non autorisé. Veuillez vous connecter.");
       navigate('/admin');
       return;
@@ -44,12 +65,17 @@ const AdminDashboard = () => {
     loadRegistrations();
   }, [navigate]);
 
+  // Apply filters when teams or filters change
+  useEffect(() => {
+    applyFilters();
+  }, [teams, filters]);
+
   // Charger les inscriptions depuis le stockage
   const loadRegistrations = async () => {
     try {
       setIsLoading(true);
       const registrations = await getAllRegistrations();
-      console.log("Inscriptions chargées:", registrations);
+      console.log("Inscriptions chargées:", registrations.length);
       setTeams(registrations);
     } catch (error) {
       console.error("Erreur lors du chargement des inscriptions:", error);
@@ -59,19 +85,74 @@ const AdminDashboard = () => {
     }
   };
 
-  // Filtrer les équipes par catégorie
-  const filteredTeamsByCategory = filterCategory === 'all'
-    ? teams
-    : teams.filter(team => team.generalInfo.category === filterCategory);
-
-  // Filtrer les équipes par statut
-  const filteredTeams = filterStatus === 'all'
-    ? filteredTeamsByCategory
-    : filteredTeamsByCategory.filter(team => team.status === filterStatus);
+  // Apply all filters to the teams
+  const applyFilters = () => {
+    let result = [...teams];
+    
+    // Category filter
+    if (filters.category !== 'all') {
+      result = result.filter(team => team.generalInfo.category === filters.category);
+    }
+    
+    // Status filter
+    if (filters.status !== 'all') {
+      result = result.filter(team => team.status === filters.status);
+    }
+    
+    // QCM Score range
+    if (filters.qcmScoreMin !== null) {
+      result = result.filter(team => 
+        team.qcmScore !== undefined && team.qcmScore >= filters.qcmScoreMin!
+      );
+    }
+    if (filters.qcmScoreMax !== null) {
+      result = result.filter(team => 
+        team.qcmScore !== undefined && team.qcmScore <= filters.qcmScoreMax!
+      );
+    }
+    
+    // Interview Score range
+    if (filters.interviewScoreMin !== null) {
+      result = result.filter(team => 
+        team.interviewScore !== undefined && team.interviewScore >= filters.interviewScoreMin!
+      );
+    }
+    if (filters.interviewScoreMax !== null) {
+      result = result.filter(team => 
+        team.interviewScore !== undefined && team.interviewScore <= filters.interviewScoreMax!
+      );
+    }
+    
+    // Interview date range
+    if (filters.interviewDateStart) {
+      result = result.filter(team => 
+        team.interviewDate && team.interviewDate >= filters.interviewDateStart
+      );
+    }
+    if (filters.interviewDateEnd) {
+      result = result.filter(team => 
+        team.interviewDate && team.interviewDate <= filters.interviewDateEnd
+      );
+    }
+    
+    // Search term
+    if (filters.searchTerm) {
+      const term = filters.searchTerm.toLowerCase();
+      result = result.filter(team => 
+        team.generalInfo.name.toLowerCase().includes(term) ||
+        team.generalInfo.institution.toLowerCase().includes(term) ||
+        team.generalInfo.city.toLowerCase().includes(term) ||
+        (team.generalInfo.pedagogicalReferentEmail && team.generalInfo.pedagogicalReferentEmail.toLowerCase().includes(term))
+      );
+    }
+    
+    setFilteredTeams(result);
+  };
 
   // Exporter une équipe spécifique au format PDF
   const exportTeamPDF = async (teamId: string) => {
     try {
+      toast.info("Génération du PDF en cours...");
       await generateTeamPDF(teamId);
       toast.success("Fiche d'équipe exportée en PDF");
     } catch (error) {
@@ -83,6 +164,7 @@ const AdminDashboard = () => {
   // Exporter toutes les équipes au format CSV
   const exportTeamsCSV = async () => {
     try {
+      toast.info("Exportation des données en CSV...");
       const csv = await exportAllRegistrationsToCSV();
       
       // Create a blob and download link
@@ -90,7 +172,7 @@ const AdminDashboard = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', 'equipes_igc.csv');
+      link.setAttribute('download', `equipes_igc_${new Date().toISOString().split('T')[0]}.csv`);
       
       document.body.appendChild(link);
       link.click();
@@ -106,14 +188,56 @@ const AdminDashboard = () => {
   // Mettre à jour une équipe
   const handleTeamUpdate = async (teamId: string, updatedData: Partial<TeamRegistration>) => {
     try {
+      // Track if we should send emails
+      const team = teams.find(t => t.id === teamId);
+      let sendInterviewEmail = false;
+      let sendDecisionEmail = false;
+      
+      // Check if we've added interview details
+      if (team && 
+          (!team.interviewDate || !team.interviewTime || !team.interviewLink) && 
+          updatedData.interviewDate && updatedData.interviewTime && updatedData.interviewLink) {
+        sendInterviewEmail = true;
+      }
+      
+      // Check if decision has been updated
+      if (team && 
+          (!team.decision) && 
+          updatedData.decision) {
+        sendDecisionEmail = true;
+      }
+      
+      // Update in Supabase
       await updateRegistration(teamId, updatedData);
       
-      // Rafraîchir la liste des équipes
+      // Refresh local data
+      const updatedTeam = { ...team, ...updatedData } as TeamRegistration;
       setTeams(prev => 
         prev.map(team => 
-          team.id === teamId ? { ...team, ...updatedData } : team
+          team.id === teamId ? updatedTeam : team
         )
       );
+      
+      // Send emails if needed
+      if (sendInterviewEmail && updatedTeam.qcmQualified) {
+        toast.info("Envoi de l'invitation à l'entretien...");
+        const success = await sendInterviewInvitation(updatedTeam);
+        if (success) {
+          toast.success("Email d'invitation à l'entretien envoyé avec succès");
+        } else {
+          toast.error("Échec de l'envoi de l'email d'invitation");
+        }
+      }
+      
+      if (sendDecisionEmail && updatedTeam.decision) {
+        toast.info("Envoi de la notification de décision...");
+        const success = await sendDecisionNotification(updatedTeam);
+        if (success) {
+          toast.success("Email de notification de décision envoyé avec succès");
+        } else {
+          toast.error("Échec de l'envoi de l'email de notification");
+        }
+      }
       
       toast.success("Équipe mise à jour avec succès");
     } catch (error) {
@@ -162,33 +286,40 @@ const AdminDashboard = () => {
       }
       
       toast.success("Recalcul terminé avec succès");
-      
-      // Refresh data from server
-      loadRegistrations();
     } catch (error) {
       console.error("Erreur lors du recalcul:", error);
       toast.error(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     }
   };
 
-  // Catégoriser le nombre d'équipes
-  const categorizeCounts = (): CategorizedCounts => {
-    let secondaire = 0;
-    let superieur = 0;
-
-    teams.forEach(team => {
-      if (team.generalInfo.category === 'Secondaire') {
-        secondaire++;
-      } else if (team.generalInfo.category === 'Supérieur') {
-        superieur++;
+  // Send test emails to verify the email service is working
+  const sendTestEmail = async () => {
+    try {
+      // Check if we have at least one team with email
+      const teamWithEmail = teams.find(team => team.generalInfo.pedagogicalReferentEmail);
+      
+      if (!teamWithEmail) {
+        toast.error("Aucune équipe avec un email n'a été trouvée");
+        return;
       }
-    });
-
-    return { secondaire, superieur };
+      
+      toast.info("Envoi d'un email de test...");
+      const success = await sendRegistrationConfirmation(teamWithEmail);
+      
+      if (success) {
+        toast.success(`Email de test envoyé à ${teamWithEmail.generalInfo.pedagogicalReferentEmail}`);
+      } else {
+        toast.error("Échec de l'envoi de l'email de test");
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'envoi de l'email de test:", error);
+      toast.error(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('admin_authenticated');
+    localStorage.removeItem('admin_auth_expiry');
     toast.success("Vous avez été déconnecté avec succès");
     navigate('/admin');
   };
@@ -220,152 +351,39 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Statistiques générales */}
-        <div className="grid gap-4 md:grid-cols-4 mb-6">
-          <Card className="transition-all duration-300 hover:shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total équipes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{teams.length}</div>
-              <p className="text-xs text-muted-foreground">
-                {categorizeCounts().secondaire} Secondaire, {categorizeCounts().superieur} Supérieur
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="transition-all duration-300 hover:shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Équipes qualifiées QCM
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {teams.filter(t => t.qcmQualified).length}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Seuils: {settings.secondaryQcmThreshold}% (Sec) / {settings.higherQcmThreshold}% (Sup)
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="transition-all duration-300 hover:shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Entretiens réalisés
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {teams.filter(t => 
-                    t.status === 'Entretien réalisé' || 
-                    t.status === 'Sélectionné' || 
-                    t.status === 'Non retenu'
-                ).length}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Sur {teams.filter(t => t.qcmQualified).length} équipes qualifiées
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="transition-all duration-300 hover:shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Équipes sélectionnées
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {teams.filter(t => t.decision === 'Sélectionné').length}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Objectif: {settings.secondaryTeamSelectionCount} (Sec) / {settings.higherTeamSelectionCount} (Sup)
-              </p>
-            </CardContent>
-          </Card>
+        {/* Statistics Dashboard */}
+        <div className="mb-8">
+          <AdminDashboardStats teams={teams} />
         </div>
         
-        {/* Filtres et Tableau */}
+        {/* Advanced Filters */}
+        <AdminFilterBar onFilterChange={setFilters} />
         
+        {/* Teams Table with Tabs */}
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-igc-navy"></div>
           </div>
         ) : (
-          <Tabs defaultValue="all" onValueChange={(value) => {
-            if (value === 'secondaire' || value === 'superieur') {
-              setFilterCategory(value);
-            }
-          }}>
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-              <TabsTrigger value="all" onClick={() => setFilterCategory('all')}>Toutes les équipes</TabsTrigger>
-              <TabsTrigger value="secondaire">Secondaire</TabsTrigger>
-              <TabsTrigger value="superieur">Supérieur</TabsTrigger>
-              <TabsTrigger value="statut">Par statut</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="all" className="space-y-4">
-              <TeamTrackingTable 
-                teams={teams} 
-                onTeamUpdate={handleTeamUpdate} 
-                onTeamDelete={handleTeamDelete}
-                onExportTeamPDF={exportTeamPDF}
-                onRecalculatePoints={handleRecalculateAll}
-              />
-            </TabsContent>
-            
-            <TabsContent value="secondaire" className="space-y-4">
-              <TeamTrackingTable 
-                teams={filteredTeamsByCategory.filter(team => team.generalInfo.category === 'Secondaire')} 
-                onTeamUpdate={handleTeamUpdate} 
-                onTeamDelete={handleTeamDelete}
-                onExportTeamPDF={exportTeamPDF}
-                onRecalculatePoints={handleRecalculateAll}
-              />
-            </TabsContent>
-            
-            <TabsContent value="superieur" className="space-y-4">
-              <TeamTrackingTable 
-                teams={filteredTeamsByCategory.filter(team => team.generalInfo.category === 'Supérieur')} 
-                onTeamUpdate={handleTeamUpdate}
-                onTeamDelete={handleTeamDelete}
-                onExportTeamPDF={exportTeamPDF}
-                onRecalculatePoints={handleRecalculateAll}
-              />
-            </TabsContent>
-            
-            <TabsContent value="statut" className="space-y-4">
-              <div className="flex items-center space-x-4 mb-4">
-                <label htmlFor="filterStatus" className="text-sm font-medium text-gray-700">Filtrer par statut:</label>
-                <select 
-                  id="filterStatus" 
-                  className="border border-gray-300 rounded-md p-2 text-sm"
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  <option value="all">Tous les statuts</option>
-                  <option value="Inscrit">Inscrit</option>
-                  <option value="QCM soumis">QCM soumis</option>
-                  <option value="Éliminé QCM">Éliminé QCM</option>
-                  <option value="Qualifié pour entretien">Qualifié pour entretien</option>
-                  <option value="Entretien réalisé">Entretien réalisé</option>
-                  <option value="Sélectionné">Sélectionné</option>
-                  <option value="Non retenu">Non retenu</option>
-                </select>
-              </div>
+          <div className="space-y-4">
+            {filteredTeams.length > 0 ? (
               <TeamTrackingTable 
                 teams={filteredTeams} 
-                onTeamUpdate={handleTeamUpdate}
+                onTeamUpdate={handleTeamUpdate} 
                 onTeamDelete={handleTeamDelete}
                 onExportTeamPDF={exportTeamPDF}
                 onRecalculatePoints={handleRecalculateAll}
               />
-            </TabsContent>
-          </Tabs>
+            ) : (
+              <div className="text-center py-12 bg-white rounded-xl shadow">
+                <p className="text-lg text-gray-500 mb-2">Aucune équipe ne correspond aux critères de recherche</p>
+                <p className="text-sm text-gray-400">Essayez de modifier vos filtres ou d'ajouter de nouvelles équipes</p>
+              </div>
+            )}
+          </div>
         )}
 
-        <div className="flex gap-4 mt-6">
+        <div className="flex flex-wrap gap-4 mt-6">
           <Button 
             variant="outline" 
             className="flex items-center gap-2 border-igc-navy text-igc-navy hover:bg-igc-magenta hover:text-white transition-all duration-300 rounded-[47px]"
@@ -378,10 +396,28 @@ const AdminDashboard = () => {
           <Button 
             variant="outline" 
             className="flex items-center gap-2 border-igc-navy text-igc-navy hover:bg-igc-magenta hover:text-white transition-all duration-300 rounded-[47px]"
+            onClick={() => generateAllTeamsPDF()}
+          >
+            <FileText className="w-4 h-4" />
+            Exporter toutes les fiches PDF
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 border-igc-navy text-igc-navy hover:bg-igc-magenta hover:text-white transition-all duration-300 rounded-[47px]"
             onClick={handleRecalculateAll}
           >
             <RefreshCw className="w-4 h-4" />
             Recalculer tous les classements
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 border-igc-navy text-igc-navy hover:bg-igc-magenta hover:text-white transition-all duration-300 rounded-[47px]"
+            onClick={sendTestEmail}
+          >
+            <Mail className="w-4 h-4" />
+            Tester l'envoi d'emails
           </Button>
         </div>
       </div>
