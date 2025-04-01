@@ -64,7 +64,7 @@ export const sendRegistrationConfirmation = async (team: TeamRegistration): Prom
     <head>
       <style>
         body {
-          font-family: Arial, sans-serif;
+          font-family: 'TT Firs Neue', Arial, sans-serif;
           line-height: 1.6;
           color: #333;
           max-width: 600px;
@@ -167,7 +167,7 @@ export const sendInterviewInvitation = async (team: TeamRegistration): Promise<b
     <head>
       <style>
         body {
-          font-family: Arial, sans-serif;
+          font-family: 'TT Firs Neue', Arial, sans-serif;
           line-height: 1.6;
           color: #333;
           max-width: 600px;
@@ -282,7 +282,7 @@ export const sendDecisionNotification = async (team: TeamRegistration): Promise<
     <head>
       <style>
         body {
-          font-family: Arial, sans-serif;
+          font-family: 'TT Firs Neue', Arial, sans-serif;
           line-height: 1.6;
           color: #333;
           max-width: 600px;

@@ -3,23 +3,14 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Filter, Search, X } from 'lucide-react';
-import {
+import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-
-interface FilterProps {
-  onFilterChange: (filters: FilterState) => void;
-}
+import { Filter, X } from "lucide-react";
 
 export interface FilterState {
   category: string;
@@ -33,7 +24,12 @@ export interface FilterState {
   searchTerm: string;
 }
 
-const AdminFilterBar: React.FC<FilterProps> = ({ onFilterChange }) => {
+interface FilterBarProps {
+  onFilterChange: (filters: FilterState) => void;
+}
+
+const AdminFilterBar: React.FC<FilterBarProps> = ({ onFilterChange }) => {
+  const [expanded, setExpanded] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     category: 'all',
     status: 'all',
@@ -45,21 +41,15 @@ const AdminFilterBar: React.FC<FilterProps> = ({ onFilterChange }) => {
     interviewDateEnd: '',
     searchTerm: ''
   });
-  
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  
+
   const handleFilterChange = (field: keyof FilterState, value: any) => {
-    const newFilters = { ...filters, [field]: value };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+    const updatedFilters = { ...filters, [field]: value };
+    setFilters(updatedFilters);
+    onFilterChange(updatedFilters);
   };
-  
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFilterChange('searchTerm', e.target.value);
-  };
-  
+
   const resetFilters = () => {
-    const resetState: FilterState = {
+    const resetFilters = {
       category: 'all',
       status: 'all',
       qcmScoreMin: null,
@@ -70,267 +60,174 @@ const AdminFilterBar: React.FC<FilterProps> = ({ onFilterChange }) => {
       interviewDateEnd: '',
       searchTerm: ''
     };
-    setFilters(resetState);
-    onFilterChange(resetState);
+    setFilters(resetFilters);
+    onFilterChange(resetFilters);
   };
-  
-  const hasActiveFilters = () => {
-    return (
-      filters.category !== 'all' ||
-      filters.status !== 'all' ||
-      filters.qcmScoreMin !== null ||
-      filters.qcmScoreMax !== null ||
-      filters.interviewScoreMin !== null ||
-      filters.interviewScoreMax !== null ||
-      filters.interviewDateStart !== '' ||
-      filters.interviewDateEnd !== '' ||
-      filters.searchTerm !== ''
-    );
-  };
-  
+
   return (
-    <div className="bg-white p-4 rounded-lg shadow mb-6 space-y-2">
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:w-auto">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Rechercher une équipe..."
-            value={filters.searchTerm}
-            onChange={handleSearchChange}
-            className="pl-8 pr-4 w-full sm:w-[300px]"
-          />
+    <div className="space-y-4 bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6 animate-fade-in">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <Filter className="w-5 h-5 text-igc-navy" />
+          <h3 className="text-lg font-medium text-igc-navy">Filtres</h3>
         </div>
         
-        <div className="flex gap-2 w-full sm:w-auto justify-end">
-          <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                className={`flex items-center gap-2 ${hasActiveFilters() ? 'border-igc-magenta text-igc-magenta' : 'border-igc-navy text-igc-navy'}`}
-              >
-                <Filter className="h-4 w-4" />
-                Filtres avancés
-                {hasActiveFilters() && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-igc-magenta rounded-full">
-                    ✓
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[320px] sm:w-[500px]" align="end">
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm">Filtres</h4>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Category filter */}
-                    <div className="space-y-1">
-                      <Label htmlFor="category">Catégorie</Label>
-                      <Select 
-                        value={filters.category} 
-                        onValueChange={(value) => handleFilterChange('category', value)}
-                      >
-                        <SelectTrigger id="category">
-                          <SelectValue placeholder="Toutes" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Toutes</SelectItem>
-                          <SelectItem value="Secondaire">Secondaire</SelectItem>
-                          <SelectItem value="Supérieur">Supérieur</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {/* Status filter */}
-                    <div className="space-y-1">
-                      <Label htmlFor="status">Statut</Label>
-                      <Select 
-                        value={filters.status} 
-                        onValueChange={(value) => handleFilterChange('status', value)}
-                      >
-                        <SelectTrigger id="status">
-                          <SelectValue placeholder="Tous" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Tous</SelectItem>
-                          <SelectItem value="Inscrit">Inscrit</SelectItem>
-                          <SelectItem value="QCM soumis">QCM soumis</SelectItem>
-                          <SelectItem value="Éliminé QCM">Éliminé QCM</SelectItem>
-                          <SelectItem value="Qualifié pour entretien">Qualifié pour entretien</SelectItem>
-                          <SelectItem value="Entretien réalisé">Entretien réalisé</SelectItem>
-                          <SelectItem value="Sélectionné">Sélectionné</SelectItem>
-                          <SelectItem value="Non retenu">Non retenu</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Score QCM range */}
-                <div className="space-y-2">
-                  <Label>Score QCM</Label>
-                  <div className="flex gap-2 items-center">
-                    <Input
-                      type="number"
-                      placeholder="Min"
-                      min="0"
-                      max="100"
-                      value={filters.qcmScoreMin !== null ? filters.qcmScoreMin : ''}
-                      onChange={(e) => handleFilterChange('qcmScoreMin', e.target.value ? Number(e.target.value) : null)}
-                    />
-                    <span>à</span>
-                    <Input
-                      type="number"
-                      placeholder="Max"
-                      min="0"
-                      max="100"
-                      value={filters.qcmScoreMax !== null ? filters.qcmScoreMax : ''}
-                      onChange={(e) => handleFilterChange('qcmScoreMax', e.target.value ? Number(e.target.value) : null)}
-                    />
-                  </div>
-                </div>
-                
-                {/* Score entretien range */}
-                <div className="space-y-2">
-                  <Label>Score entretien</Label>
-                  <div className="flex gap-2 items-center">
-                    <Input
-                      type="number"
-                      placeholder="Min"
-                      min="0"
-                      max="10"
-                      step="0.1"
-                      value={filters.interviewScoreMin !== null ? filters.interviewScoreMin : ''}
-                      onChange={(e) => handleFilterChange('interviewScoreMin', e.target.value ? Number(e.target.value) : null)}
-                    />
-                    <span>à</span>
-                    <Input
-                      type="number"
-                      placeholder="Max"
-                      min="0"
-                      max="10"
-                      step="0.1"
-                      value={filters.interviewScoreMax !== null ? filters.interviewScoreMax : ''}
-                      onChange={(e) => handleFilterChange('interviewScoreMax', e.target.value ? Number(e.target.value) : null)}
-                    />
-                  </div>
-                </div>
-                
-                {/* Date d'entretien range */}
-                <div className="space-y-2">
-                  <Label>Période d'entretien</Label>
-                  <div className="flex gap-2 items-center">
-                    <Input
-                      type="date"
-                      placeholder="Début"
-                      value={filters.interviewDateStart}
-                      onChange={(e) => handleFilterChange('interviewDateStart', e.target.value)}
-                    />
-                    <span>à</span>
-                    <Input
-                      type="date"
-                      placeholder="Fin"
-                      value={filters.interviewDateEnd}
-                      onChange={(e) => handleFilterChange('interviewDateEnd', e.target.value)}
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex justify-between">
-                  <Button 
-                    variant="outline" 
-                    onClick={resetFilters}
-                    className="text-red-500 border-red-500 hover:bg-red-50"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Réinitialiser
-                  </Button>
-                  <Button 
-                    onClick={() => setFiltersOpen(false)}
-                    className="bg-igc-navy hover:bg-igc-navy/90"
-                  >
-                    Appliquer les filtres
-                  </Button>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setExpanded(!expanded)}
+            className="text-igc-navy border-igc-navy hover:bg-igc-magenta hover:text-white hover:border-igc-magenta transition-colors"
+          >
+            {expanded ? 'Réduire' : 'Plus de filtres'}
+          </Button>
           
-          {hasActiveFilters() && (
-            <Button
-              variant="ghost"
-              onClick={resetFilters}
-              className="text-red-500 hover:bg-red-50 hover:text-red-600"
-            >
-              <X className="h-4 w-4 mr-2" />
-              Effacer
-            </Button>
-          )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={resetFilters}
+            className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white transition-colors"
+          >
+            <X className="w-4 h-4 mr-1" /> Réinitialiser
+          </Button>
         </div>
       </div>
       
-      {/* Active filters display */}
-      {hasActiveFilters() && (
-        <div className="flex flex-wrap gap-2 mt-2">
-          {filters.category !== 'all' && (
-            <Badge 
-              label={`Catégorie: ${filters.category}`} 
-              onRemove={() => handleFilterChange('category', 'all')} 
-            />
-          )}
-          {filters.status !== 'all' && (
-            <Badge 
-              label={`Statut: ${filters.status}`} 
-              onRemove={() => handleFilterChange('status', 'all')} 
-            />
-          )}
-          {(filters.qcmScoreMin !== null || filters.qcmScoreMax !== null) && (
-            <Badge 
-              label={`Score QCM: ${filters.qcmScoreMin || 0} - ${filters.qcmScoreMax || 100}`} 
-              onRemove={() => {
-                handleFilterChange('qcmScoreMin', null);
-                handleFilterChange('qcmScoreMax', null);
-              }} 
-            />
-          )}
-          {(filters.interviewScoreMin !== null || filters.interviewScoreMax !== null) && (
-            <Badge 
-              label={`Score entretien: ${filters.interviewScoreMin || 0} - ${filters.interviewScoreMax || 10}`} 
-              onRemove={() => {
-                handleFilterChange('interviewScoreMin', null);
-                handleFilterChange('interviewScoreMax', null);
-              }} 
-            />
-          )}
-          {(filters.interviewDateStart !== '' || filters.interviewDateEnd !== '') && (
-            <Badge 
-              label={`Entretien: ${filters.interviewDateStart || 'début'} à ${filters.interviewDateEnd || 'fin'}`} 
-              onRemove={() => {
-                handleFilterChange('interviewDateStart', '');
-                handleFilterChange('interviewDateEnd', '');
-              }} 
-            />
-          )}
-          {filters.searchTerm !== '' && (
-            <Badge 
-              label={`Recherche: "${filters.searchTerm}"`} 
-              onRemove={() => handleFilterChange('searchTerm', '')} 
-            />
-          )}
+      {/* Basic filters (always visible) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <Label htmlFor="searchTerm">Recherche</Label>
+          <Input
+            id="searchTerm"
+            type="text"
+            placeholder="Nom de l'équipe, école..."
+            value={filters.searchTerm}
+            onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
+            className="mt-1"
+          />
+        </div>
+        
+        <div>
+          <Label htmlFor="category">Catégorie</Label>
+          <Select 
+            value={filters.category} 
+            onValueChange={(value) => handleFilterChange('category', value)}
+          >
+            <SelectTrigger id="category" className="mt-1">
+              <SelectValue placeholder="Toutes les catégories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les catégories</SelectItem>
+              <SelectItem value="Secondaire">Secondaire</SelectItem>
+              <SelectItem value="Supérieur">Supérieur</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <Label htmlFor="status">Statut</Label>
+          <Select 
+            value={filters.status} 
+            onValueChange={(value) => handleFilterChange('status', value)}
+          >
+            <SelectTrigger id="status" className="mt-1">
+              <SelectValue placeholder="Tous les statuts" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="Inscrit">Inscrit</SelectItem>
+              <SelectItem value="QCM soumis">QCM soumis</SelectItem>
+              <SelectItem value="Éliminé QCM">Éliminé QCM</SelectItem>
+              <SelectItem value="Qualifié pour entretien">Qualifié pour entretien</SelectItem>
+              <SelectItem value="Entretien réalisé">Entretien réalisé</SelectItem>
+              <SelectItem value="Sélectionné">Sélectionné</SelectItem>
+              <SelectItem value="Non retenu">Non retenu</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      
+      {/* Advanced filters (expandable) */}
+      {expanded && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-200 mt-4 animate-fade-in">
+          <div>
+            <Label htmlFor="qcmScoreRange">Plage de Score QCM</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                id="qcmScoreMin"
+                type="number"
+                placeholder="Min"
+                min="0"
+                max="100"
+                value={filters.qcmScoreMin || ''}
+                onChange={(e) => handleFilterChange('qcmScoreMin', e.target.value ? Number(e.target.value) : null)}
+                className="w-1/2"
+              />
+              <span>à</span>
+              <Input
+                id="qcmScoreMax"
+                type="number"
+                placeholder="Max"
+                min="0"
+                max="100"
+                value={filters.qcmScoreMax || ''}
+                onChange={(e) => handleFilterChange('qcmScoreMax', e.target.value ? Number(e.target.value) : null)}
+                className="w-1/2"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <Label htmlFor="interviewScoreRange">Plage de Score Entretien</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                id="interviewScoreMin"
+                type="number"
+                placeholder="Min"
+                min="0"
+                max="10"
+                step="0.1"
+                value={filters.interviewScoreMin || ''}
+                onChange={(e) => handleFilterChange('interviewScoreMin', e.target.value ? Number(e.target.value) : null)}
+                className="w-1/2"
+              />
+              <span>à</span>
+              <Input
+                id="interviewScoreMax"
+                type="number"
+                placeholder="Max"
+                min="0"
+                max="10"
+                step="0.1"
+                value={filters.interviewScoreMax || ''}
+                onChange={(e) => handleFilterChange('interviewScoreMax', e.target.value ? Number(e.target.value) : null)}
+                className="w-1/2"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <Label htmlFor="interviewDateRange">Dates d'entretien</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                id="interviewDateStart"
+                type="date"
+                value={filters.interviewDateStart}
+                onChange={(e) => handleFilterChange('interviewDateStart', e.target.value)}
+                className="w-1/2"
+              />
+              <span>à</span>
+              <Input
+                id="interviewDateEnd"
+                type="date"
+                value={filters.interviewDateEnd}
+                onChange={(e) => handleFilterChange('interviewDateEnd', e.target.value)}
+                className="w-1/2"
+              />
+            </div>
+          </div>
         </div>
       )}
-    </div>
-  );
-};
-
-// Badge component for active filters
-const Badge = ({ label, onRemove }: { label: string; onRemove: () => void }) => {
-  return (
-    <div className="inline-flex items-center rounded-full bg-igc-navy/10 px-3 py-1 text-sm text-igc-navy">
-      {label}
-      <button onClick={onRemove} className="ml-2 hover:text-igc-magenta">
-        <X className="h-3 w-3" />
-      </button>
     </div>
   );
 };

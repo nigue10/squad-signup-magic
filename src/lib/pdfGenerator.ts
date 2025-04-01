@@ -13,8 +13,10 @@ import {
   formatGeneralInfo,
   formatMemberInfo,
   formatSkillsSection,
-  formatMotivationSection
+  formatMotivationSection,
+  generateMarkdownTemplate
 } from './pdfUtils';
+import { toast } from 'sonner';
 
 /**
  * Génère un PDF pour une équipe spécifique
@@ -25,10 +27,14 @@ export const generateTeamPDF = async (teamId: string): Promise<void> => {
     // Récupérer les données de l'équipe
     const team = getRegistrationById(teamId);
     if (!team) {
+      toast.error(`Équipe avec l'ID ${teamId} non trouvée`);
       throw new Error(`Équipe avec l'ID ${teamId} non trouvée`);
     }
 
     const settings = getSettings();
+    
+    // Pour débogage: générer le template markdown
+    console.log("Markdown template:", generateMarkdownTemplate(team, settings));
     
     // Créer un nouveau document PDF
     const doc = new jsPDF();
@@ -88,9 +94,11 @@ export const generateTeamPDF = async (teamId: string): Promise<void> => {
     
     // Save the PDF
     doc.save(`IGC_${settings.applicationYear}_Fiche_${team.generalInfo.name.replace(/\s+/g, '_')}.pdf`);
+    toast.success(`PDF généré avec succès pour l'équipe ${team.generalInfo.name}`);
     return Promise.resolve();
   } catch (error) {
     console.error("Erreur lors de la génération du PDF:", error);
+    toast.error(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     return Promise.reject(error);
   }
 };
@@ -102,8 +110,11 @@ export const generateAllTeamsPDF = async (): Promise<void> => {
   try {
     const teams = getAllRegistrations();
     if (teams.length === 0) {
+      toast.error("Aucune équipe trouvée");
       throw new Error("Aucune équipe trouvée");
     }
+    
+    toast.info(`Génération des fiches PDF pour ${teams.length} équipes...`);
     
     // Create separate PDF for each team
     const promises = teams.map(team => 
@@ -123,9 +134,10 @@ export const generateAllTeamsPDF = async (): Promise<void> => {
     );
     
     await Promise.all(promises);
-    console.log(`${teams.length} fiches PDF ont été générées avec succès.`);
+    toast.success(`${teams.length} fiches PDF ont été générées avec succès.`);
   } catch (error) {
     console.error("Erreur lors de la génération des fiches PDF:", error);
+    toast.error(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     throw error;
   }
 };

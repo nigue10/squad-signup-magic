@@ -1,55 +1,56 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Index from "./pages/Index";
-import RegistrationForm from "./pages/RegistrationForm";
-import AdminLogin from "./pages/AdminLogin";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminSettings from "./pages/AdminSettings";
-import UserGuide from "./pages/UserGuide";
-import NotFound from "./pages/NotFound";
-import AdminPortal from "./pages/AdminPortal";
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'sonner';
+import Index from './pages/Index';
+import AdminPortal from './pages/AdminPortal';
+import AdminLogin from './pages/AdminLogin';
+import RegistrationForm from './pages/RegistrationForm';
+import UserGuide from './pages/UserGuide';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminSettings from './pages/AdminSettings';
+import NotFound from './pages/NotFound';
+import ProtectedRoute from './components/ProtectedRoute';
+import { initAnimations } from './utils/animations';
+import './App.css';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+function App() {
+  // Initialize animations when the app loads
+  useEffect(() => {
+    // Import GSAP and initialize animations
+    import('gsap').then(() => {
+      initAnimations();
+    });
+  }, []);
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/registration" element={<RegistrationForm />} />
-          <Route path="/guide" element={<UserGuide />} />
-          <Route path="/admin-portal" element={<AdminPortal />} />
-          <Route path="/admin" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={
+  return (
+    <Router>
+      <Toaster richColors position="top-right" />
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/register" element={<RegistrationForm />} />
+        <Route path="/guide" element={<UserGuide />} />
+        <Route path="/admin" element={<AdminLogin />} />
+        <Route 
+          path="/admin/dashboard" 
+          element={
             <ProtectedRoute>
               <AdminDashboard />
             </ProtectedRoute>
-          } />
-          <Route path="/admin/settings" element={
+          } 
+        />
+        <Route 
+          path="/admin/settings" 
+          element={
             <ProtectedRoute>
               <AdminSettings />
             </ProtectedRoute>
-          } />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+          } 
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Router>
+  );
+}
 
 export default App;

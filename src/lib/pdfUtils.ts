@@ -1,3 +1,4 @@
+
 import { TeamRegistration } from '@/types/igc';
 import { calculatePoints } from '@/utils/teamCalculations';
 import { getSettings } from '@/lib/settings';
@@ -24,7 +25,7 @@ export const addLogos = (doc: any) => {
     const centerX = doc.internal.pageSize.width / 2;
     const logoWidth = 40;
     
-    // Logo IGC centered at top
+    // Logo IGC centered at top - make sure the path is correct
     doc.addImage("/lovable-uploads/f2bba9e8-108e-4607-9b68-2192cbc4963a.png", "PNG", 
                 centerX - (logoWidth / 2), 15, logoWidth, logoWidth);
     
@@ -85,7 +86,7 @@ export const getTeamPoints = (team: TeamRegistration): number => {
 };
 
 export const formatMemberInfo = (doc: any, team: TeamRegistration, startY: number): number => {
-  // Set table headers
+  // Set table headers according to Markdown template
   const headers = [
     "Nom & Prénoms", "Sexe", "Date de naissance", "Classe/Niveau", 
     "Établissement", "Ville", "Commune", "Téléphone", "Email"
@@ -193,7 +194,7 @@ export const formatMotivationSection = (doc: any, team: TeamRegistration, startY
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
   doc.setFont("helvetica", "bold");
-  doc.text("Pourquoi souhaitez-vous participer à l'IGC 2025 ?", 25, startY + 20);
+  doc.text("Pourquoi souhaitez-vous participer à l'IGC 2025 ? (3 à 5 lignes)", 25, startY + 20);
   doc.setFont("helvetica", "normal");
   
   // Split motivation text into lines to fit on the page
@@ -206,7 +207,7 @@ export const formatMotivationSection = (doc: any, team: TeamRegistration, startY
   
   // Values
   doc.setFont("helvetica", "bold");
-  doc.text("En quoi votre équipe incarne les valeurs de l'IGC ?", 25, startY + 35 + motivationHeight);
+  doc.text("En quoi votre équipe incarne les valeurs de l'IGC ? (Créativité, esprit d'équipe, innovation)", 25, startY + 35 + motivationHeight);
   doc.setFont("helvetica", "normal");
   
   // Split values text into lines
@@ -286,4 +287,92 @@ export const formatGeneralInfo = (doc: any, team: TeamRegistration, startY: numb
   
   // Return the new Y position
   return rowY + 10;
+};
+
+// Function to generate a markdown representation of the team data
+// Could be used for debugging or alternative output format
+export const generateMarkdownTemplate = (team: TeamRegistration, settings: any): string => {
+  // Skills list
+  let skillsList = "";
+  if (team.skills) {
+    const skills = [];
+    if (team.skills.arduino) skills.push("Arduino");
+    if (team.skills.sensors) skills.push("Capteurs");
+    if (team.skills.design3d) skills.push("Conception 3D");
+    if (team.skills.basicElectronics) skills.push("Électronique de base");
+    if (team.skills.programming) skills.push("Programmation");
+    if (team.skills.robotDesign) skills.push("Conception de robots");
+    if (team.skills.remoteControl) skills.push("Contrôle à distance");
+    if (team.skills.teamwork) skills.push("Travail d'équipe");
+    skillsList = skills.join(", ");
+  }
+
+  // Members table rows
+  let membersTable = "";
+  team.members.forEach((member, index) => {
+    membersTable += `| ${member.name || "-"} | ${member.gender || "-"} | ${member.birthDate || "-"} | ${member.level || "-"} | ${member.school || "-"} | ${member.city || "-"} | ${member.commune || "-"} | ${member.phone || "-"} | ${member.email || "-"} |\n`;
+  });
+
+  // Add empty rows if needed
+  const maxMembers = team.generalInfo.category === 'Secondaire' ? 6 : 6;
+  for (let i = team.members.length; i < maxMembers; i++) {
+    membersTable += "| - | - | - | - | - | - | - | - | - |\n";
+  }
+
+  return `# FICHE D'IDENTIFICATION DE L'ÉQUIPE – IGC ${settings.applicationYear}
+
+<div style="text-align: center; margin-bottom: 20px;">
+  ![IGC Logo](assets/igc-logo.png)  
+  *International Genius Challenge ${settings.applicationYear} – Compétition de Robotique Éducative*
+</div>
+
+---
+
+📌 **Informations Générales sur l'Équipe**
+
+- **Date** : ${team.generalInfo.date || new Date().toISOString().split('T')[0]}  
+- **Nom de l'équipe** * : ${team.generalInfo.name}  
+- **Catégorie** * : ${team.generalInfo.category}  
+- **Ville** * : ${team.generalInfo.city}  
+- **Commune** * : ${team.generalInfo.commune || "-"}  
+- **Établissement ou structure de rattachement** * : ${team.generalInfo.institution}  
+- **Nom du référent pédagogique** (obligatoire pour le secondaire) : ${team.generalInfo.pedagogicalReferentName || "-"}  
+- **Téléphone référent pédagogique** : ${team.generalInfo.pedagogicalReferentPhone || "-"}  
+- **Email référent pédagogique** : ${team.generalInfo.pedagogicalReferentEmail || "-"}  
+- **Nom du chef d'équipe** : ${team.generalInfo.teamLeaderName || "-"}  
+
+---
+
+👥 **Composition de l'Équipe**  
+👉 *Le chef d'équipe doit figurer dans la liste ci-dessous et y renseigner ses coordonnées.*  
+✅ *Rappel composition : Secondaire : 6 membres, Supérieur : 4 à 6 membres*  
+*NB : Les équipes composées de filles sont très encouragées.*
+
+| Nom & Prénoms *   | Sexe *         | Date de naissance * | Classe / Niveau * | Établissement * | Ville *      | Commune *    | Téléphone      | Email         |
+|-------------------|----------------|---------------------|-------------------|-----------------|--------------|--------------|----------------|---------------|
+${membersTable}
+
+---
+
+🧠 **Compétences & Outils maîtrisés dans l'équipe**  
+- **Compétences** : ${skillsList || "Aucune compétence spécifiée"}  
+- **Autre(s)** : ${team.skills?.otherDescription || "Aucune"}  
+
+---
+
+💡 **Motivation & Vision**  
+- **Pourquoi souhaitez-vous participer à l'IGC ${settings.applicationYear} ?** *(3 à 5 lignes)*  
+  ${team.vision?.motivation || "Non spécifiée"}  
+
+- **En quoi votre équipe incarne les valeurs de l'IGC ? (Créativité, esprit d'équipe, innovation)** *  
+  ${team.vision?.values || "Non spécifiée"}  
+
+- **Niveau de connaissances en robotique de l'équipe** * : ${team.vision?.roboticsLevel || "Non spécifié"}  
+- **L'équipe dispose-t-elle d'un espace de travail ?** * : ${team.vision?.hasWorkspace ? "Oui" : "Non"}  
+
+---
+
+<div style="text-align: center; margin-top: 20px;">
+  <small style="color: #1b1464;">© ${settings.applicationYear} IGC – Tous droits réservés</small>
+</div>`;
 };

@@ -15,7 +15,7 @@ import {
   Cell
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Award, CheckCheck, BookCheck, Flame } from 'lucide-react';
+import { Users, Award, CheckCheck, BookCheck } from 'lucide-react';
 
 interface StatsProps {
   teams: TeamRegistration[];
@@ -60,7 +60,7 @@ const AdminDashboardStats: React.FC<StatsProps> = ({ teams }) => {
   const COLORS = ['#1b1464', '#96005d', '#cc99cc', '#4CAF50', '#FFC107', '#F44336'];
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Main stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="transition-all duration-300 hover:shadow-md">

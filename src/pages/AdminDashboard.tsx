@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TeamTrackingTable from '@/components/TeamTrackingTable';
 import AdminDashboardStats from '@/components/AdminDashboardStats';
 import AdminFilterBar, { FilterState } from '@/components/AdminFilterBar';
@@ -325,7 +324,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-igc-navy/5 to-igc-purple/5">
+    <div className="min-h-screen bg-gradient-to-br from-igc-navy/5 to-igc-purple/5 animate-fade-in">
       <div className="container py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-igc-navy">Tableau de bord Administrateur</h1>
